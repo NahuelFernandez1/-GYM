@@ -17,8 +17,9 @@ import {
   planificacionService, semanaPlanService,
   diaPlanService, ejercicioPlanificadoService, ejercicioService
 } from '../services/api';
+import BloqueFijo from '../components/BloqueFijo';
 
-const DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'];
+const DIAS = ['Día 1', 'Día 2', 'Día 3', 'Día 4', 'Día 5', 'Día 6', 'Día 7'];
 
 const DetallePlanificacion = () => {
   const { id } = useParams();
@@ -35,7 +36,7 @@ const DetallePlanificacion = () => {
   const [semanaEditando, setSemanaEditando] = useState(null);
   const [dialogDia, setDialogDia] = useState(false);
   const [semanaSeleccionada, setSemanaSeleccionada] = useState(null);
-  const [diaForm, setDiaForm] = useState('LUNES');
+  const [diaForm, setDiaForm] = useState(DIAS[0]);
 
   const [dialogEditarEjercicio, setDialogEditarEjercicio] = useState(false);
   const [ejercicioEditando, setEjercicioEditando] = useState(null);
@@ -128,6 +129,7 @@ const DetallePlanificacion = () => {
     const nuevoEjercicio = {
       diaPlan: { id: diaId },
       ejercicio: { id: fila.ejercicioId },
+      circuito: fila.circuito || null,
       series: parseInt(fila.series) || 0,
       repeticiones: parseInt(fila.repeticiones) || 0,
       rir: fila.rir || null,
@@ -189,6 +191,20 @@ const DetallePlanificacion = () => {
         </Box>
       </Box>
 
+      <BloqueFijo
+        planificacionId={id}
+        tipoBloque="MOVILIDAD"
+        titulo="Bloque de Movilidad"
+        catalogoEjercicios={catalogoEjercicios}
+        patronFiltro="MOVILIDAD"
+      />
+      <BloqueFijo
+        planificacionId={id}
+        tipoBloque="ACTIVACION"
+        titulo="Bloque de Activación"
+        catalogoEjercicios={catalogoEjercicios}
+      />
+
       {semanas.length === 0 && (
         <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
           No hay semanas todavía. Agregá la primera semana para empezar.
@@ -217,7 +233,7 @@ const DetallePlanificacion = () => {
                   <DeleteIcon fontSize="small" />
                 </IconButton>
                 <Button size="small" variant="outlined" startIcon={<AddIcon />}
-                  onClick={() => { setSemanaSeleccionada(semanaVisible); setDiaForm('LUNES'); setDialogDia(true); }}>
+                  onClick={() => { setSemanaSeleccionada(semanaVisible); setDiaForm(DIAS[0]); setDialogDia(true); }}>
                   Agregar día
                 </Button>
               </Box>
@@ -245,6 +261,7 @@ const DetallePlanificacion = () => {
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'background.default' }}>
                     <TableCell sx={{ width: 32, color: 'text.secondary', fontSize: 11 }}>#</TableCell>
+                    <TableCell sx={{ width: 70, color: 'text.secondary', fontSize: 11 }}>Circuito</TableCell>
                     <TableCell sx={{ color: 'text.secondary', fontSize: 11 }}>Ejercicio</TableCell>
                     <TableCell sx={{ width: 70, color: 'text.secondary', fontSize: 11 }}>Series</TableCell>
                     <TableCell sx={{ width: 70, color: 'text.secondary', fontSize: 11 }}>Reps</TableCell>
@@ -257,6 +274,12 @@ const DetallePlanificacion = () => {
                   {(ejerciciosPorDia[dia.id] || []).map((ep) => (
                     <TableRow key={ep.id} hover>
                       <TableCell sx={{ color: 'text.muted', fontSize: 11 }}>{ep.orden}</TableCell>
+                      <TableCell sx={{ fontSize: 12 }}>
+                        {ep.circuito && (
+                          <Chip label={ep.circuito} size="small"
+                            sx={{ bgcolor: '#e8f5e9', color: '#2e7d32', fontSize: 11 }} />
+                        )}
+                      </TableCell>
                       <TableCell sx={{ fontWeight: 500 }}>{ep.ejercicio?.nombre}</TableCell>
                       <TableCell>{ep.series}</TableCell>
                       <TableCell>{ep.repeticiones}</TableCell>
@@ -283,6 +306,13 @@ const DetallePlanificacion = () => {
                     <TableRow sx={{ bgcolor: 'background.default' }}>
                       <TableCell sx={{ color: 'text.muted', fontSize: 11 }}>
                         {(ejerciciosPorDia[dia.id]?.length || 0) + 1}
+                      </TableCell>
+                      <TableCell>
+                        <InputBase size="small" placeholder="CF1"
+                          sx={{ width: 60, fontSize: 13 }}
+                          onChange={(e) => setNuevaFilaPorDia(prev => ({
+                            ...prev, [dia.id]: { ...prev[dia.id], circuito: e.target.value }
+                          }))} />
                       </TableCell>
                       <TableCell>
                         <Autocomplete
@@ -406,6 +436,9 @@ const DetallePlanificacion = () => {
             <Typography variant="body1" fontWeight="bold" color="primary">
               {ejercicioEditando?.ejercicio?.nombre}
             </Typography>
+            <TextField fullWidth label="Circuito" placeholder="ej: CF1"
+              value={ejercicioEditando?.circuito || ''}
+              onChange={(e) => setEjercicioEditando({ ...ejercicioEditando, circuito: e.target.value })} />
             <Box display="flex" gap={2}>
               <TextField fullWidth label="Series" type="number"
                 value={ejercicioEditando?.series || ''}

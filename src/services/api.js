@@ -70,4 +70,11 @@ export const ejercicioPlanificadoService = {
   update: (id, ejercicio) => api.put(`/ejercicios-planificados/${id}`, ejercicio),
   delete: (id) => api.delete(`/ejercicios-planificados/${id}`),
 };
+
+export const ejercicioFijoPlanService = {
+  getByPlanificacion: (planId) => api.get(`/ejercicios-fijos-plan/planificacion/${planId}`),
+  create: (ejercicioFijo) => api.post('/ejercicios-fijos-plan', ejercicioFijo),
+  update: (id, ejercicioFijo) => api.put(`/ejercicios-fijos-plan/${id}`, ejercicioFijo),
+  delete: (id) => api.delete(`/ejercicios-fijos-plan/${id}`),
+};
 export default api;
