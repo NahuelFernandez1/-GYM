@@ -97,35 +97,72 @@ const Ejercicios = () => {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2} mb={3.5}>
+      {/* 1. Header de Página */}
+      <Box
+        display="flex"
+        flexDirection={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
+        gap={2}
+        mb={4}
+      >
         <Box>
           <Box display="flex" alignItems="center" gap={1.5}>
-            <Typography variant="h4" fontWeight={800} sx={{ color: '#0f172a' }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontSize: { xs: '1.75rem', sm: '2rem' },
+                fontWeight: 800,
+                color: '#0f172a',
+                lineHeight: 1.2
+              }}
+            >
               Catálogo de Ejercicios
             </Typography>
             <Chip
               label={`${ejercicios.length} ejercicios`}
               size="small"
-              sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700, fontSize: '0.75rem' }}
+              sx={{
+                bgcolor: '#f1f5f9',
+                color: '#475569',
+                fontWeight: 700,
+                fontSize: '0.75rem',
+                height: 24,
+                verticalAlign: 'middle'
+              }}
             />
           </Box>
-          <Typography variant="body1" color="text.secondary">
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 1,
+              color: 'text.secondary',
+              fontSize: '0.875rem'
+            }}
+          >
             Banco de movimientos con enlaces a videos demostrativos y clasificación por patrón.
           </Typography>
         </Box>
+
         <Button
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
           onClick={abrirNuevo}
-          sx={{ fontWeight: 700, px: 2.5, py: 1.2 }}
+          sx={{
+            fontWeight: 700,
+            px: 3,
+            py: 1.2,
+            alignSelf: { xs: 'flex-start', sm: 'center' },
+            flexShrink: 0
+          }}
         >
           Nuevo ejercicio
         </Button>
       </Box>
 
-      {/* Filter and Search Bar */}
-      <Paper elevation={1} sx={{ p: 2.5, mb: 3, borderRadius: 3 }}>
+      {/* 2. Filter and Search Bar */}
+      <Paper elevation={1} sx={{ p: 3, mb: 4, borderRadius: 3.5 }}>
         <Box display="flex" flexDirection={{ xs: 'column', lg: 'row' }} gap={2} alignItems="center" justifyContent="space-between">
           <TextField
             fullWidth
@@ -162,6 +199,7 @@ const Ejercicios = () => {
                   sx={{
                     fontWeight: 700,
                     fontSize: '0.8rem',
+                    height: 32,
                     bgcolor: active ? '#0f172a' : '#f1f5f9',
                     color: active ? '#ffffff' : '#64748b',
                     '&:hover': {
@@ -175,12 +213,12 @@ const Ejercicios = () => {
         </Box>
       </Paper>
 
-      {/* Table */}
-      <TableContainer component={Paper} elevation={1} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+      {/* 3. Table Container */}
+      <TableContainer component={Paper} elevation={1} sx={{ borderRadius: 3.5, overflow: 'hidden', mb: 4 }}>
         <Table>
           <TableHead sx={{ bgcolor: '#f8fafc' }}>
             <TableRow>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>
                 <TableSortLabel
                   active={ordenCampo === 'nombre'}
                   direction={ordenCampo === 'nombre' && ordenAsc ? 'asc' : 'desc'}
@@ -189,7 +227,7 @@ const Ejercicios = () => {
                   Nombre del Ejercicio
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>
                 <TableSortLabel
                   active={ordenCampo === 'patronMovimiento'}
                   direction={ordenCampo === 'patronMovimiento' && ordenAsc ? 'asc' : 'desc'}
@@ -198,9 +236,9 @@ const Ejercicios = () => {
                   Patrón
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>Descripción / Notas</TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>Demostración</TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700, textAlign: 'right' }}>Acciones</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>Descripción / Notas</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>Demostración</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2, textAlign: 'right' }}>Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -216,11 +254,11 @@ const Ejercicios = () => {
                     '&:hover': { bgcolor: '#f8fafc' }
                   }}
                 >
-                  <TableCell sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.925rem' }}>
+                  <TableCell sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.925rem', px: 3, py: 2 }}>
                     {ejercicio.nombre}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell sx={{ px: 3, py: 2 }}>
                     <Chip
                       label={st.label}
                       size="small"
@@ -233,11 +271,11 @@ const Ejercicios = () => {
                     />
                   </TableCell>
 
-                  <TableCell sx={{ color: '#64748b', maxWidth: 320 }}>
+                  <TableCell sx={{ color: '#64748b', maxWidth: 320, px: 3, py: 2 }}>
                     {ejercicio.descripcion || <Typography variant="caption" color="text.secondary">Sin descripción</Typography>}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell sx={{ px: 3, py: 2 }}>
                     {ejercicio.videoUrl ? (
                       <Button
                         size="small"
@@ -263,7 +301,7 @@ const Ejercicios = () => {
                     )}
                   </TableCell>
 
-                  <TableCell sx={{ textAlign: 'right' }}>
+                  <TableCell sx={{ textAlign: 'right', px: 3, py: 2 }}>
                     <Tooltip title="Editar Ejercicio">
                       <IconButton
                         size="small"
@@ -289,14 +327,14 @@ const Ejercicios = () => {
 
             {ejerciciosFiltrados.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
-                  <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
-                    <FitnessCenterIcon sx={{ fontSize: 44, color: '#cbd5e1' }} />
-                    <Typography variant="body1" fontWeight={700} color="text.secondary">
+                <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
+                  <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
+                    <FitnessCenterIcon sx={{ fontSize: 48, color: '#cbd5e1' }} />
+                    <Typography variant="body1" fontWeight={700} color="#0f172a">
                       No se encontraron ejercicios
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Probá cambiando el filtro o creá un nuevo movimiento.
+                      Probá cambiando el filtro o creá un nuevo movimiento con el botón superior.
                     </Typography>
                   </Box>
                 </TableCell>

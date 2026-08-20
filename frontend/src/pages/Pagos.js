@@ -56,9 +56,10 @@ const KpiRevenueCard = ({ titulo, valor, icono, color, gradient }) => (
       position: 'relative',
       overflow: 'hidden',
       border: '1px solid rgba(226, 232, 240, 0.8)',
-      boxShadow: '0 4px 20px -2px rgba(0,0,0,0.05)',
+      boxShadow: '0 2px 12px -2px rgba(0,0,0,0.04)',
       borderRadius: 4,
       background: '#ffffff',
+      height: '100%',
     }}
   >
     <Box
@@ -66,23 +67,24 @@ const KpiRevenueCard = ({ titulo, valor, icono, color, gradient }) => (
         position: 'absolute',
         top: -24,
         right: -24,
-        width: 90,
-        height: 90,
+        width: 100,
+        height: 100,
         borderRadius: '50%',
         background: gradient || `${color}15`,
-        filter: 'blur(14px)',
+        filter: 'blur(16px)',
+        pointerEvents: 'none'
       }}
     />
-    <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-        <Typography variant="body2" color="text.secondary" fontWeight={600}>
+    <CardContent sx={{ p: 3, '&:last-child': { pb: 3 }, position: 'relative', zIndex: 1 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ letterSpacing: '0.01em' }}>
           {titulo}
         </Typography>
         <Box
           sx={{
             width: 44,
             height: 44,
-            borderRadius: 3,
+            borderRadius: '12px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -90,20 +92,24 @@ const KpiRevenueCard = ({ titulo, valor, icono, color, gradient }) => (
             color: color,
           }}
         >
-          {React.cloneElement(icono, { sx: { fontSize: 24, color } })}
+          {React.cloneElement(icono, { sx: { fontSize: 22, color } })}
         </Box>
       </Box>
-      <Typography
-        variant="h3"
-        sx={{
-          fontFamily: '"Plus Jakarta Sans", sans-serif',
-          fontWeight: 800,
-          color: '#0f172a',
-          letterSpacing: '-0.03em'
-        }}
-      >
-        ${Number(valor || 0).toLocaleString('es-AR')}
-      </Typography>
+      <Box mt={2}>
+        <Typography
+          variant="h3"
+          sx={{
+            fontFamily: '"Plus Jakarta Sans", sans-serif',
+            fontWeight: 800,
+            fontSize: { xs: '1.875rem', sm: '2.25rem' },
+            color: '#0f172a',
+            letterSpacing: '-0.03em',
+            lineHeight: 1.1
+          }}
+        >
+          ${Number(valor || 0).toLocaleString('es-AR')}
+        </Typography>
+      </Box>
     </CardContent>
   </Card>
 );
@@ -177,43 +183,79 @@ const Pagos = () => {
 
   return (
     <Box>
-      {/* Header */}
-      <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2} mb={3.5}>
+      {/* 1. Header de Página */}
+      <Box
+        display="flex"
+        flexDirection={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
+        gap={2}
+        mb={4}
+      >
         <Box>
           <Box display="flex" alignItems="center" gap={1.5}>
-            <Typography variant="h4" fontWeight={800} sx={{ color: '#0f172a' }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontSize: { xs: '1.75rem', sm: '2rem' },
+                fontWeight: 800,
+                color: '#0f172a',
+                lineHeight: 1.2
+              }}
+            >
               Pagos & Cuotas
             </Typography>
             <Chip
               label={`${pagos.length} registros`}
               size="small"
-              sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700, fontSize: '0.75rem' }}
+              sx={{
+                bgcolor: '#f1f5f9',
+                color: '#475569',
+                fontWeight: 700,
+                fontSize: '0.75rem',
+                height: 24,
+                verticalAlign: 'middle'
+              }}
             />
           </Box>
-          <Typography variant="body1" color="text.secondary">
-            Control de ingresos, cobros en efectivo y transferencias.
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 1,
+              color: 'text.secondary',
+              fontSize: '0.875rem'
+            }}
+          >
+            Control de ingresos, cobros en efectivo y transferencias bancarias.
           </Typography>
         </Box>
+
         <Button
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
           onClick={abrirNuevo}
-          sx={{ fontWeight: 700, px: 2.5, py: 1.2 }}
+          sx={{
+            fontWeight: 700,
+            px: 3,
+            py: 1.2,
+            alignSelf: { xs: 'flex-start', sm: 'center' },
+            flexShrink: 0
+          }}
         >
           Nuevo pago
         </Button>
       </Box>
 
-      {/* Revenue KPIs */}
-      <Grid container spacing={3} mb={3.5}>
+      {/* 2. Cards de Estadísticas */}
+      <Grid container spacing={3} mb={4}>
         <Grid size={{ xs: 12, sm: 6 }}>
           <KpiRevenueCard
             titulo="Recaudado Hoy"
             valor={resumen.recaudadoHoy || 0}
             icono={<AccountBalanceWalletIcon />}
             color="#16a34a"
-            gradient="linear-gradient(135deg, rgba(22, 163, 74, 0.3) 0%, rgba(22, 163, 74, 0) 100%)"
+            gradient="linear-gradient(135deg, rgba(22, 163, 74, 0.35) 0%, rgba(22, 163, 74, 0) 100%)"
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
@@ -222,22 +264,26 @@ const Pagos = () => {
             valor={resumen.recaudadoMes || 0}
             icono={<CalendarMonthIcon />}
             color="#2563eb"
-            gradient="linear-gradient(135deg, rgba(37, 99, 235, 0.3) 0%, rgba(37, 99, 235, 0) 100%)"
+            gradient="linear-gradient(135deg, rgba(37, 99, 235, 0.35) 0%, rgba(37, 99, 235, 0) 100%)"
           />
         </Grid>
       </Grid>
 
-      {/* Filters Bar */}
-      <Paper elevation={1} sx={{ p: 2.5, mb: 3, borderRadius: 3 }}>
+      {/* 3. Barra de Filtros */}
+      <Paper elevation={1} sx={{ p: 3, mb: 4, borderRadius: 3.5 }}>
         <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
           <TextField
             placeholder="Buscar por alumno..."
             size="small"
             value={filtroAlumno}
             onChange={(e) => setFiltroAlumno(e.target.value)}
-            sx={{ minWidth: 240, flexGrow: 1 }}
+            sx={{ flex: 1, minWidth: 240 }}
             InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: '#94a3b8' }} fontSize="small" /></InputAdornment>
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: '#94a3b8' }} fontSize="small" />
+                </InputAdornment>
+              )
             }}
           />
           <TextField
@@ -246,7 +292,7 @@ const Pagos = () => {
             size="small"
             value={filtroMes}
             onChange={(e) => setFiltroMes(e.target.value)}
-            sx={{ minWidth: 140 }}
+            sx={{ width: { xs: '100%', sm: 160 }, minWidth: 150 }}
           >
             <MenuItem value="">Todos los meses</MenuItem>
             {MESES.map(m => (
@@ -259,7 +305,7 @@ const Pagos = () => {
             size="small"
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
-            sx={{ minWidth: 140 }}
+            sx={{ width: { xs: '100%', sm: 160 }, minWidth: 150 }}
           >
             <MenuItem value="">Todos</MenuItem>
             <MenuItem value="PAGADO">Pagado</MenuItem>
@@ -271,7 +317,7 @@ const Pagos = () => {
               variant="outlined"
               size="medium"
               onClick={() => { setFiltroAlumno(''); setFiltroMes(''); setFiltroEstado(''); }}
-              sx={{ color: '#64748b', borderColor: '#cbd5e1' }}
+              sx={{ color: '#64748b', borderColor: '#cbd5e1', height: 40, px: 2.5 }}
             >
               Limpiar
             </Button>
@@ -279,18 +325,18 @@ const Pagos = () => {
         </Box>
       </Paper>
 
-      {/* Table */}
-      <TableContainer component={Paper} elevation={1} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+      {/* 4. Tabla de Pagos */}
+      <TableContainer component={Paper} elevation={1} sx={{ borderRadius: 3.5, overflow: 'hidden', mb: 4 }}>
         <Table>
           <TableHead sx={{ bgcolor: '#f8fafc' }}>
             <TableRow>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>Alumno</TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>Monto</TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>Fecha Pago</TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>Vencimiento</TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>Método</TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700 }}>Estado</TableCell>
-              <TableCell sx={{ color: '#475569', fontWeight: 700, textAlign: 'right' }}>Acciones</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>Alumno</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>Monto</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>Fecha Pago</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>Vencimiento</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>Método</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2 }}>Estado</TableCell>
+              <TableCell sx={{ color: '#475569', fontWeight: 700, px: 3, py: 2, textAlign: 'right' }}>Acciones</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -307,23 +353,23 @@ const Pagos = () => {
                     '&:hover': { bgcolor: '#f8fafc' }
                   }}
                 >
-                  <TableCell sx={{ fontWeight: 700, color: '#0f172a' }}>
+                  <TableCell sx={{ fontWeight: 700, color: '#0f172a', px: 3, py: 2 }}>
                     {pago.alumno?.nombre} {pago.alumno?.apellido}
                   </TableCell>
 
-                  <TableCell sx={{ fontWeight: 800, color: '#16a34a', fontSize: '0.95rem' }}>
+                  <TableCell sx={{ fontWeight: 800, color: '#16a34a', fontSize: '0.95rem', px: 3, py: 2 }}>
                     ${Number(pago.monto || 0).toLocaleString('es-AR')}
                   </TableCell>
 
-                  <TableCell sx={{ color: '#475569', fontWeight: 500 }}>
+                  <TableCell sx={{ color: '#475569', fontWeight: 500, px: 3, py: 2 }}>
                     {pago.fechaPago || '—'}
                   </TableCell>
 
-                  <TableCell sx={{ color: '#475569', fontWeight: 500 }}>
+                  <TableCell sx={{ color: '#475569', fontWeight: 500, px: 3, py: 2 }}>
                     {pago.fechaVencimiento || '—'}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell sx={{ px: 3, py: 2 }}>
                     <Chip
                       icon={met.icon}
                       label={met.label}
@@ -337,7 +383,7 @@ const Pagos = () => {
                     />
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell sx={{ px: 3, py: 2 }}>
                     <Chip
                       label={st.label}
                       size="small"
@@ -350,7 +396,7 @@ const Pagos = () => {
                     />
                   </TableCell>
 
-                  <TableCell sx={{ textAlign: 'right' }}>
+                  <TableCell sx={{ textAlign: 'right', px: 3, py: 2 }}>
                     <Tooltip title="Editar Pago">
                       <IconButton
                         size="small"
@@ -376,14 +422,14 @@ const Pagos = () => {
 
             {pagosFiltrados.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                  <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
-                    <ReceiptLongIcon sx={{ fontSize: 44, color: '#cbd5e1' }} />
-                    <Typography variant="body1" fontWeight={700} color="text.secondary">
+                <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                  <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
+                    <ReceiptLongIcon sx={{ fontSize: 48, color: '#cbd5e1' }} />
+                    <Typography variant="body1" fontWeight={700} color="#0f172a">
                       No se encontraron pagos registrados
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Registrá un nuevo pago haciendo clic en el botón superior.
+                      Registrá un nuevo cobro haciendo clic en el botón superior "Nuevo pago".
                     </Typography>
                   </Box>
                 </TableCell>
