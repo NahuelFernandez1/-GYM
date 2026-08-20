@@ -69,14 +69,14 @@ export interface SemanaPlan {
 
 export interface DiaPlan {
   id?: number;
-  semana?: { id: number };
+  semanaPlan?: { id: number };
   diaSemana: string;
   orden?: number;
 }
 
 export interface EjercicioPlanificado {
   id?: number;
-  dia?: { id: number };
+  diaPlan?: { id: number };
   ejercicio?: Ejercicio;
   circuito?: string;
   series?: number | string;

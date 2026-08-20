@@ -14,6 +14,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", "El dato ingresado ya existe (DNI o email duplicado) o falta un campo obligatorio."));
+                .body(Map.of("error", "No se pudo guardar: el dato ya existe o falta un campo obligatorio."));
     }
 }

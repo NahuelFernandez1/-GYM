@@ -131,12 +131,14 @@ const DetallePlanificacion: React.FC = () => {
   const agregarDia = () => {
     if (!semanaSeleccionada || !semanaSeleccionada.id) return;
     const nuevoDia: Partial<DiaPlan> = {
-      semana: { id: semanaSeleccionada.id },
+      semanaPlan: { id: semanaSeleccionada.id },
       diaSemana: diaForm,
     };
     diaPlanService.create(nuevoDia).then(() => {
       if (semanaSeleccionada.id) cargarDias(semanaSeleccionada.id);
       setDialogDia(false);
+    }).catch((err) => {
+      alert(err.response?.data?.error || 'No se pudo agregar el día de entrenamiento.');
     });
   };
 
@@ -151,7 +153,7 @@ const DetallePlanificacion: React.FC = () => {
     const fila = nuevaFilaPorDia[diaId];
     if (!fila?.ejercicioId) return;
     const nuevoEjercicio: Partial<EjercicioPlanificado> = {
-      dia: { id: diaId },
+      diaPlan: { id: diaId },
       ejercicio: { id: fila.ejercicioId } as Ejercicio,
       circuito: fila.circuito || undefined,
       series: parseInt(String(fila.series)) || 0,
@@ -163,6 +165,8 @@ const DetallePlanificacion: React.FC = () => {
     ejercicioPlanificadoService.create(nuevoEjercicio).then(() => {
       cargarEjercicios(diaId);
       setNuevaFilaPorDia(prev => ({ ...prev, [diaId]: null }));
+    }).catch((err) => {
+      alert(err.response?.data?.error || 'No se pudo agregar el ejercicio.');
     });
   };
 
@@ -177,10 +181,12 @@ const DetallePlanificacion: React.FC = () => {
   };
 
   const guardarEditarEjercicio = () => {
-    if (!ejercicioEditando || !ejercicioEditando.id || !ejercicioEditando.dia?.id) return;
+    if (!ejercicioEditando || !ejercicioEditando.id || !ejercicioEditando.diaPlan?.id) return;
     ejercicioPlanificadoService.update(ejercicioEditando.id, ejercicioEditando).then(() => {
-      if (ejercicioEditando.dia?.id) cargarEjercicios(ejercicioEditando.dia.id);
+      if (ejercicioEditando.diaPlan?.id) cargarEjercicios(ejercicioEditando.diaPlan.id);
       setDialogEditarEjercicio(false);
+    }).catch((err) => {
+      alert(err.response?.data?.error || 'No se pudo editar el ejercicio.');
     });
   };
 
