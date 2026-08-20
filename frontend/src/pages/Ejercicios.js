@@ -10,7 +10,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
-import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import ClearIcon from '@mui/icons-material/Clear';
 import { ejercicioService } from '../services/api';
@@ -245,7 +245,7 @@ const Ejercicios = () => {
                         href={ejercicio.videoUrl}
                         target="_blank"
                         rel="noreferrer"
-                        startIcon={<PlayCircleOutlineIcon sx={{ color: '#ef4444' }} />}
+                        startIcon={<PlayCircleIcon sx={{ color: '#ef4444' }} />}
                         sx={{
                           borderRadius: 2,
                           py: 0.5,

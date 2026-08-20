@@ -8,7 +8,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import PaymentIcon from '@mui/icons-material/Payment';
 import WarningIcon from '@mui/icons-material/Warning';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -176,7 +176,7 @@ const Dashboard = () => {
             <Button
               variant="contained"
               color="primary"
-              startIcon={<AddCircleOutlineIcon />}
+              startIcon={<AddCircleIcon />}
               onClick={() => navigate('/alumnos')}
               sx={{ fontWeight: 700, px: 2.5, py: 1.2 }}
             >

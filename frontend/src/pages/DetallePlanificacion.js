@@ -43,11 +43,11 @@ const DetallePlanificacion = () => {
   // Fila nueva inline por día
   const [nuevaFilaPorDia, setNuevaFilaPorDia] = useState({});
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     planificacionService.getById(id).then(res => setPlan(res.data));
     cargarSemanas();
     ejercicioService.getAll().then(res => setCatalogoEjercicios(res.data));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const cargarSemanas = () => {

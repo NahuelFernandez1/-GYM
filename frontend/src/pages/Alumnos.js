@@ -13,7 +13,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import EventIcon from '@mui/icons-material/Event';
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import PersonIcon from '@mui/icons-material/Person';
 import ClearIcon from '@mui/icons-material/Clear';
 import { alumnoService } from '../services/api';
 
@@ -306,7 +306,7 @@ const Alumnos = () => {
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                   <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
-                    <PersonOutlineIcon sx={{ fontSize: 44, color: '#cbd5e1' }} />
+                    <PersonIcon sx={{ fontSize: 44, color: '#cbd5e1' }} />
                     <Typography variant="body1" fontWeight={700} color="text.secondary">
                       No se encontraron alumnos
                     </Typography>
