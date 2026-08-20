@@ -5,9 +5,16 @@ import com.itextpdf.text.pdf.*;
 import com.masgym.api.model.*;
 import com.masgym.api.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
+import java.time.Period;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -16,61 +23,93 @@ public class PdfService {
     private final SemanaPlanRepository semanaPlanRepository;
     private final DiaPlanRepository diaPlanRepository;
     private final EjercicioPlanificadoRepository ejercicioPlanificadoRepository;
+    private final EjercicioFijoPlanRepository ejercicioFijoPlanRepository;
+
+    private static class FilaFuerza {
+        String circuito;
+        String nombreEjercicio;
+        String notas;
+        Integer series;
+        List<String> valoresPorSemana;
+    }
 
     private static final BaseColor VERDE_OSCURO = new BaseColor(27, 94, 32);
+    private static final BaseColor VERDE_MEDIO = new BaseColor(46, 125, 50);
     private static final BaseColor VERDE_CLARO = new BaseColor(232, 245, 233);
-    private static final BaseColor AMARILLO = new BaseColor(249, 168, 37);
     private static final BaseColor GRIS = new BaseColor(245, 245, 245);
 
     public byte[] generarPdf(Planificacion plan) throws Exception {
-        Document document = new Document(PageSize.A4, 40, 40, 40, 40);
+        Document document = new Document(PageSize.A4, 24, 24, 16, 16);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PdfWriter.getInstance(document, out);
+        PdfWriter writer = PdfWriter.getInstance(document, out);
         document.open();
 
-        Font fuenteTitulo = new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, BaseColor.WHITE);
-        Font fuenteSubtitulo = new Font(Font.FontFamily.HELVETICA, 11, Font.NORMAL, AMARILLO);
-        Font fuenteAlumno = new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD, VERDE_OSCURO);
-        Font fuenteNormal = new Font(Font.FontFamily.HELVETICA, 10, Font.NORMAL, BaseColor.DARK_GRAY);
-        Font fuenteBold = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.DARK_GRAY);
-        Font fuenteBlanco = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE);
-        Font fuenteVerde = new Font(Font.FontFamily.HELVETICA, 11, Font.BOLD, VERDE_OSCURO);
+        Font fuenteSubtitulo = new Font(Font.FontFamily.HELVETICA, 9.5f, Font.NORMAL, VERDE_OSCURO);
+        Font fuenteAlumno = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD, VERDE_OSCURO);
+        Font fuenteNormal = new Font(Font.FontFamily.HELVETICA, 8.5f, Font.NORMAL, BaseColor.DARK_GRAY);
+        Font fuenteBold = new Font(Font.FontFamily.HELVETICA, 8.5f, Font.BOLD, BaseColor.DARK_GRAY);
+        Font fuenteBlanco = new Font(Font.FontFamily.HELVETICA, 8.5f, Font.BOLD, BaseColor.WHITE);
+        Font fuenteVerde = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, VERDE_OSCURO);
 
-        // Header
-        PdfPTable header = new PdfPTable(1);
+        // Header: logo + subtítulo
+        PdfPTable header = new PdfPTable(2);
         header.setWidthPercentage(100);
-        PdfPCell headerCell = new PdfPCell();
-        headerCell.setBackgroundColor(VERDE_OSCURO);
-        headerCell.setPadding(12);
-        headerCell.setBorder(Rectangle.NO_BORDER);
-        Paragraph headerContent = new Paragraph();
-        headerContent.add(new Chunk("MASGYM\n", fuenteTitulo));
-        headerContent.add(new Chunk("Plan de entrenamiento", fuenteSubtitulo));
-        headerCell.addElement(headerContent);
-        header.addCell(headerCell);
+        header.setWidths(new float[]{1f, 2.2f});
+
+        byte[] logoBytes = new ClassPathResource("images/logo-masgym.png").getInputStream().readAllBytes();
+        Image logo = Image.getInstance(logoBytes);
+        logo.scaleToFit(75, 30);
+        PdfPCell logoCell = new PdfPCell(logo, false);
+        logoCell.setBorder(Rectangle.NO_BORDER);
+        logoCell.setPadding(4);
+        logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        header.addCell(logoCell);
+
+        PdfPCell subtituloCell = new PdfPCell(new Phrase("Plan de entrenamiento", fuenteSubtitulo));
+        subtituloCell.setBorder(Rectangle.NO_BORDER);
+        subtituloCell.setPadding(4);
+        subtituloCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        subtituloCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        header.addCell(subtituloCell);
         document.add(header);
-        document.add(Chunk.NEWLINE);
+
+        PdfPTable barra = new PdfPTable(1);
+        barra.setWidthPercentage(100);
+        PdfPCell barraCell = new PdfPCell();
+        barraCell.setBackgroundColor(VERDE_OSCURO);
+        barraCell.setFixedHeight(3);
+        barraCell.setBorder(Rectangle.NO_BORDER);
+        barra.addCell(barraCell);
+        document.add(barra);
+        document.add(new Paragraph(" ", new Font(Font.FontFamily.HELVETICA, 4)));
 
         // Datos del alumno
         Alumno alumno = plan.getAlumno();
+        String edadTexto = "-";
+        if (alumno.getFechaNacimiento() != null) {
+            int anios = Period.between(alumno.getFechaNacimiento(), LocalDate.now()).getYears();
+            edadTexto = anios + " años";
+        }
+
         PdfPTable datosTable = new PdfPTable(2);
         datosTable.setWidthPercentage(100);
         datosTable.setWidths(new float[]{1.5f, 1f});
 
         PdfPCell alumnoCell = new PdfPCell();
         alumnoCell.setBorderColor(VERDE_OSCURO);
-        alumnoCell.setPadding(10);
+        alumnoCell.setPadding(6);
         alumnoCell.setBackgroundColor(VERDE_CLARO);
         Paragraph alumnoInfo = new Paragraph();
         alumnoInfo.add(new Chunk(alumno.getNombre() + " " + alumno.getApellido() + "\n", fuenteAlumno));
-        alumnoInfo.add(new Chunk("Email: " + alumno.getEmail() + "\n", fuenteNormal));
-        alumnoInfo.add(new Chunk("Teléfono: " + (alumno.getTelefono() != null ? alumno.getTelefono() : "-"), fuenteNormal));
+        alumnoInfo.add(new Chunk("Edad: " + edadTexto + "\n", fuenteNormal));
+        alumnoInfo.add(new Chunk("Objetivo: " + (alumno.getObjetivos() != null ? alumno.getObjetivos() : "-") + "\n", fuenteNormal));
+        alumnoInfo.add(new Chunk("Notas: " + (alumno.getNotas() != null ? alumno.getNotas() : "-"), fuenteNormal));
         alumnoCell.addElement(alumnoInfo);
         datosTable.addCell(alumnoCell);
 
         PdfPCell vigenciaCell = new PdfPCell();
         vigenciaCell.setBorderColor(VERDE_OSCURO);
-        vigenciaCell.setPadding(10);
+        vigenciaCell.setPadding(6);
         vigenciaCell.setBackgroundColor(VERDE_CLARO);
         vigenciaCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
         Paragraph vigenciaInfo = new Paragraph();
@@ -81,107 +120,187 @@ public class PdfService {
         vigenciaCell.addElement(vigenciaInfo);
         datosTable.addCell(vigenciaCell);
         document.add(datosTable);
-        document.add(Chunk.NEWLINE);
+        document.add(new Paragraph(" ", new Font(Font.FontFamily.HELVETICA, 4)));
 
-        // Semanas y días
+        // Bloques fijos: Movilidad y Activación (una sola vez, iguales todas las semanas)
+        agregarBloqueFijo(document, plan, TipoBloqueFijo.MOVILIDAD, "BLOQUE DE MOVILIDAD",
+                fuenteBlanco, fuenteNormal, fuenteBold, GRIS);
+        agregarBloqueFijo(document, plan, TipoBloqueFijo.ACTIVACION, "BLOQUE DE ACTIVACIÓN",
+                fuenteBlanco, fuenteNormal, fuenteBold, GRIS);
+
+        // Bloque de fuerza: agrupado por Día -> Circuito -> Ejercicio,
+        // con la progresión de cada semana en una sola fila (REP/RIR: 7(5)-8(4)-...)
         List<SemanaPlan> semanas = semanaPlanRepository
                 .findByPlanificacionIdOrderByNumeroSemanaAsc(plan.getId());
 
-        for (SemanaPlan semana : semanas) {
-            // Título semana
-            PdfPTable semanaTable = new PdfPTable(1);
-            semanaTable.setWidthPercentage(100);
-            PdfPCell semanaCell = new PdfPCell(new Phrase("Semana " + semana.getNumeroSemana(), fuenteBlanco));
-            semanaCell.setBackgroundColor(VERDE_OSCURO);
-            semanaCell.setPadding(8);
-            semanaCell.setBorder(Rectangle.NO_BORDER);
-            semanaTable.addCell(semanaCell);
-            document.add(semanaTable);
-            document.add(Chunk.NEWLINE);
+        PdfPTable bloqueFuerzaTitulo = new PdfPTable(1);
+        bloqueFuerzaTitulo.setWidthPercentage(100);
+        PdfPCell bloqueFuerzaCell = new PdfPCell(new Phrase("BLOQUE DE FUERZA", fuenteBlanco));
+        bloqueFuerzaCell.setBackgroundColor(VERDE_OSCURO);
+        bloqueFuerzaCell.setPadding(4);
+        bloqueFuerzaCell.setBorder(Rectangle.NO_BORDER);
+        bloqueFuerzaTitulo.addCell(bloqueFuerzaCell);
+        document.add(bloqueFuerzaTitulo);
 
+        // dia -> orden -> fila (agrupa la misma fila a través de las semanas)
+        LinkedHashMap<String, LinkedHashMap<Integer, FilaFuerza>> porDia = new LinkedHashMap<>();
+
+        for (int semanaIdx = 0; semanaIdx < semanas.size(); semanaIdx++) {
+            SemanaPlan semana = semanas.get(semanaIdx);
             List<DiaPlan> dias = diaPlanRepository.findBySemanaPlanId(semana.getId());
-            int numeroDia = 1;
+            final int idx = semanaIdx;
+            final int totalSemanas = semanas.size();
 
             for (DiaPlan dia : dias) {
-                // Título día
-                Paragraph tituloDia = new Paragraph(numeroDia + " — " + dia.getDiaSemana(), fuenteVerde);
-                tituloDia.setSpacingBefore(6);
-                tituloDia.setSpacingAfter(4);
-                document.add(tituloDia);
+                LinkedHashMap<Integer, FilaFuerza> filasDia =
+                        porDia.computeIfAbsent(dia.getDiaSemana(), d -> new LinkedHashMap<>());
 
                 List<EjercicioPlanificado> ejercicios = ejercicioPlanificadoRepository
                         .findByDiaPlanIdOrderByOrdenAsc(dia.getId());
 
-                if (!ejercicios.isEmpty()) {
-                    PdfPTable tabla = new PdfPTable(6);
-                    tabla.setWidthPercentage(100);
-                    tabla.setWidths(new float[]{0.5f, 2.5f, 0.8f, 0.8f, 0.8f, 2f});
-
-                    // Headers tabla
-                    String[] headers = {"#", "Ejercicio", "Series", "Reps", "Peso", "Notas"};
-                    for (String h : headers) {
-                        PdfPCell cell = new PdfPCell(new Phrase(h, fuenteBlanco));
-                        cell.setBackgroundColor(new BaseColor(46, 125, 50));
-                        cell.setPadding(6);
-                        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        tabla.addCell(cell);
-                    }
-
-                    // Filas ejercicios
-                    boolean fila = false;
-                    for (EjercicioPlanificado ep : ejercicios) {
-                        BaseColor bgColor = fila ? GRIS : BaseColor.WHITE;
-
-                        PdfPCell c1 = new PdfPCell(new Phrase(String.valueOf(ep.getOrden()), fuenteNormal));
-                        c1.setBackgroundColor(bgColor); c1.setPadding(5);
-                        c1.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        tabla.addCell(c1);
-
-                        PdfPCell c2 = new PdfPCell(new Phrase(ep.getEjercicio().getNombre(), fuenteBold));
-                        c2.setBackgroundColor(bgColor); c2.setPadding(5);
-                        tabla.addCell(c2);
-
-                        PdfPCell c3 = new PdfPCell(new Phrase(String.valueOf(ep.getSeries()), fuenteNormal));
-                        c3.setBackgroundColor(bgColor); c3.setPadding(5);
-                        c3.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        tabla.addCell(c3);
-
-                        PdfPCell c4 = new PdfPCell(new Phrase(String.valueOf(ep.getRepeticiones()), fuenteNormal));
-                        c4.setBackgroundColor(bgColor); c4.setPadding(5);
-                        c4.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        tabla.addCell(c4);
-
-                        PdfPCell c5 = new PdfPCell(new Phrase(ep.getPesoKg() != null ? ep.getPesoKg() + " kg" : "—", fuenteNormal));
-                        c5.setBackgroundColor(bgColor); c5.setPadding(5);
-                        c5.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        tabla.addCell(c5);
-
-                        PdfPCell c6 = new PdfPCell(new Phrase(ep.getNotas() != null ? ep.getNotas() : "", fuenteNormal));
-                        c6.setBackgroundColor(bgColor); c6.setPadding(5);
-                        tabla.addCell(c6);
-
-                        fila = !fila;
-                    }
-                    document.add(tabla);
+                for (EjercicioPlanificado ep : ejercicios) {
+                    FilaFuerza fila = filasDia.computeIfAbsent(ep.getOrden(), o -> {
+                        FilaFuerza f = new FilaFuerza();
+                        f.circuito = ep.getCircuito();
+                        f.nombreEjercicio = ep.getEjercicio().getNombre();
+                        f.notas = ep.getNotas();
+                        f.series = ep.getSeries();
+                        f.valoresPorSemana = new ArrayList<>(Collections.nCopies(totalSemanas, "-"));
+                        return f;
+                    });
+                    String rir = ep.getRir() != null && !ep.getRir().isBlank() ? "(" + ep.getRir() + ")" : "";
+                    fila.valoresPorSemana.set(idx, ep.getRepeticiones() + rir);
                 }
-                document.add(Chunk.NEWLINE);
-                numeroDia++;
             }
         }
 
-        // Footer
-        PdfPTable footer = new PdfPTable(1);
-        footer.setWidthPercentage(100);
-        PdfPCell footerCell = new PdfPCell();
-        footerCell.setBackgroundColor(VERDE_OSCURO);
-        footerCell.setPadding(10);
-        footerCell.setBorder(Rectangle.NO_BORDER);
-        footerCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        footerCell.addElement(new Paragraph("💪 MASGYM — Seguí entrenando fuerte", fuenteBlanco));
-        footer.addCell(footerCell);
-        document.add(footer);
+        for (Map.Entry<String, LinkedHashMap<Integer, FilaFuerza>> diaEntry : porDia.entrySet()) {
+            PdfPTable tituloDiaTabla = new PdfPTable(1);
+            tituloDiaTabla.setWidthPercentage(100);
+            tituloDiaTabla.setSpacingBefore(4);
+            tituloDiaTabla.setSpacingAfter(2);
+            PdfPCell tituloDiaCell = new PdfPCell(new Phrase(diaEntry.getKey(), fuenteVerde));
+            tituloDiaCell.setBackgroundColor(VERDE_CLARO);
+            tituloDiaCell.setPadding(4);
+            tituloDiaCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            tituloDiaCell.setBorderColor(VERDE_OSCURO);
+            tituloDiaTabla.addCell(tituloDiaCell);
+            document.add(tituloDiaTabla);
+
+            // Agrupar las filas del día por circuito, preservando el orden de aparición
+            LinkedHashMap<String, List<FilaFuerza>> porCircuito = new LinkedHashMap<>();
+            for (FilaFuerza fila : diaEntry.getValue().values()) {
+                String circuito = fila.circuito != null && !fila.circuito.isBlank() ? fila.circuito : "—";
+                porCircuito.computeIfAbsent(circuito, c -> new ArrayList<>()).add(fila);
+            }
+
+            for (Map.Entry<String, List<FilaFuerza>> circuitoEntry : porCircuito.entrySet()) {
+                List<FilaFuerza> filas = circuitoEntry.getValue();
+                Integer seriesCircuito = filas.get(0).series;
+                String tituloCircuito = circuitoEntry.getKey() +
+                        (seriesCircuito != null ? " (" + seriesCircuito + " series)" : "");
+
+                Paragraph pCircuito = new Paragraph(tituloCircuito, fuenteBold);
+                pCircuito.setSpacingBefore(2);
+                pCircuito.setSpacingAfter(1);
+                document.add(pCircuito);
+
+                PdfPTable tabla = new PdfPTable(2);
+                tabla.setWidthPercentage(100);
+                tabla.setWidths(new float[]{2.5f, 3.5f});
+
+                boolean filaAlterna = false;
+                for (FilaFuerza fila : filas) {
+                    BaseColor bgColor = filaAlterna ? GRIS : BaseColor.WHITE;
+
+                    String textoEjercicio = fila.nombreEjercicio;
+                    if (fila.notas != null && !fila.notas.isBlank()) {
+                        textoEjercicio += " (" + fila.notas.trim() + ")";
+                    }
+                    PdfPCell c1 = new PdfPCell(new Phrase(textoEjercicio, fuenteBold));
+                    c1.setBackgroundColor(bgColor); c1.setPadding(3);
+                    tabla.addCell(c1);
+
+                    String valores = String.join("-", fila.valoresPorSemana);
+                    PdfPCell c2 = new PdfPCell(new Phrase("REP/RIR: " + valores, fuenteNormal));
+                    c2.setBackgroundColor(bgColor); c2.setPadding(3);
+                    tabla.addCell(c2);
+
+                    filaAlterna = !filaAlterna;
+                }
+                document.add(tabla);
+            }
+        }
+
+        // Footer: línea de cierre + logo centrado, anclado cerca del final de la hoja
+        Image footerLogo = Image.getInstance(logoBytes);
+        footerLogo.scaleToFit(55, 22);
+        float pageWidth = document.getPageSize().getWidth();
+        float footerY = 26;
+        float lineY = footerY + footerLogo.getScaledHeight() + 6;
+
+        PdfContentByte cb = writer.getDirectContent();
+        cb.setColorFill(VERDE_OSCURO);
+        cb.rectangle(document.leftMargin(), lineY, pageWidth - document.leftMargin() - document.rightMargin(), 1.5f);
+        cb.fill();
+
+        footerLogo.setAbsolutePosition((pageWidth - footerLogo.getScaledWidth()) / 2, footerY);
+        cb.addImage(footerLogo);
 
         document.close();
         return out.toByteArray();
+    }
+
+    private void agregarBloqueFijo(Document document, Planificacion plan, TipoBloqueFijo tipoBloque,
+                                    String titulo, Font fuenteBlanco, Font fuenteNormal, Font fuenteBold,
+                                    BaseColor gris) throws DocumentException {
+        List<EjercicioFijoPlan> items = ejercicioFijoPlanRepository
+                .findByPlanificacionIdAndTipoBloqueOrderByOrdenAsc(plan.getId(), tipoBloque);
+        if (items.isEmpty()) return;
+
+        PdfPTable tituloTabla = new PdfPTable(1);
+        tituloTabla.setWidthPercentage(100);
+        PdfPCell tituloCell = new PdfPCell(new Phrase(titulo, fuenteBlanco));
+        tituloCell.setBackgroundColor(VERDE_OSCURO);
+        tituloCell.setPadding(4);
+        tituloCell.setBorder(Rectangle.NO_BORDER);
+        tituloTabla.addCell(tituloCell);
+        document.add(tituloTabla);
+
+        PdfPTable tabla = new PdfPTable(3);
+        tabla.setWidthPercentage(100);
+        tabla.setWidths(new float[]{0.4f, 3.6f, 1.6f});
+
+        String[] headers = {"#", "Ejercicio", "Series/Repeticiones"};
+        for (String h : headers) {
+            PdfPCell headerCell = new PdfPCell(new Phrase(h, fuenteBlanco));
+            headerCell.setBackgroundColor(VERDE_MEDIO);
+            headerCell.setPadding(3);
+            headerCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            tabla.addCell(headerCell);
+        }
+
+        boolean filaAlterna = false;
+        for (EjercicioFijoPlan item : items) {
+            BaseColor bgColor = filaAlterna ? gris : BaseColor.WHITE;
+
+            PdfPCell c1 = new PdfPCell(new Phrase(String.valueOf(item.getOrden()), fuenteNormal));
+            c1.setBackgroundColor(bgColor); c1.setPadding(3);
+            c1.setHorizontalAlignment(Element.ALIGN_CENTER);
+            tabla.addCell(c1);
+
+            PdfPCell c2 = new PdfPCell(new Phrase(item.getEjercicio().getNombre(), fuenteBold));
+            c2.setBackgroundColor(bgColor); c2.setPadding(3);
+            tabla.addCell(c2);
+
+            PdfPCell c3 = new PdfPCell(new Phrase(item.getSeriesReps() != null ? item.getSeriesReps() : "", fuenteNormal));
+            c3.setBackgroundColor(bgColor); c3.setPadding(3);
+            c3.setHorizontalAlignment(Element.ALIGN_CENTER);
+            tabla.addCell(c3);
+
+            filaAlterna = !filaAlterna;
+        }
+        document.add(tabla);
+        document.add(new Paragraph(" ", new Font(Font.FontFamily.HELVETICA, 3)));
     }
 }

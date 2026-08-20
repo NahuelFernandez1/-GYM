@@ -67,10 +67,12 @@ public class SemanaPlanController {
                 nuevoEp.setDiaPlan(diaGuardado);
                 nuevoEp.setEjercicio(ep.getEjercicio());
                 nuevoEp.setOrden(ep.getOrden());
+                nuevoEp.setCircuito(ep.getCircuito());
                 nuevoEp.setSeries(ep.getSeries());
                 nuevoEp.setRepeticiones(ep.getRepeticiones());
                 nuevoEp.setPesoKg(ep.getPesoKg());
                 nuevoEp.setNotas(ep.getNotas());
+                nuevoEp.setRir(ep.getRir());
                 ejercicioPlanificadoRepository.save(nuevoEp);
             }
 

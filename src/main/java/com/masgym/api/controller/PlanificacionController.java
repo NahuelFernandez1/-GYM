@@ -3,10 +3,13 @@ package com.masgym.api.controller;
 import com.masgym.api.model.Planificacion;
 import com.masgym.api.service.PlanificacionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import com.masgym.api.service.EmailService;
+import com.masgym.api.service.PdfService;
 import com.masgym.api.repository.PlanificacionRepository;
 
 
@@ -18,6 +21,7 @@ public class PlanificacionController {
 
     private final PlanificacionService planificacionService;
     private final EmailService emailService;
+    private final PdfService pdfService;
     private final PlanificacionRepository planificacionRepository;
 
     @GetMapping
@@ -68,6 +72,21 @@ public class PlanificacionController {
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         planificacionService.eliminar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> descargarPdf(@PathVariable Long id) {
+        try {
+            Planificacion plan = planificacionRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Planificacion no encontrada"));
+            byte[] pdf = pdfService.generarPdf(plan);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=Planificacion_" + id + ".pdf")
+                    .body(pdf);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @PostMapping("/{id}/enviar")
