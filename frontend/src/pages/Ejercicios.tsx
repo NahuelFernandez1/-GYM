@@ -14,8 +14,9 @@ import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import ClearIcon from '@mui/icons-material/Clear';
 import { ejercicioService } from '../services/api';
+import { Ejercicio, PatronMovimiento } from '../types';
 
-const patronStyles = {
+const patronStyles: Record<PatronMovimiento, { bg: string; text: string; border: string; label: string }> = {
   EMPUJE: { bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', label: 'Empuje' },
   TRACCION: { bg: '#f3e8ff', text: '#7e22ce', border: '#e9d5ff', label: 'Tracción' },
   MOVILIDAD: { bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd', label: 'Movilidad' },
@@ -24,22 +25,22 @@ const patronStyles = {
   CORE: { bg: '#fef3c7', text: '#b45309', border: '#fde68a', label: 'Core' },
 };
 
-const ejercicioInicial = {
+const ejercicioInicial: Ejercicio = {
   nombre: '',
   patronMovimiento: 'MOVILIDAD',
   descripcion: '',
   videoUrl: '',
 };
 
-const Ejercicios = () => {
-  const [ejercicios, setEjercicios] = useState([]);
+const Ejercicios: React.FC = () => {
+  const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
   const [filtro, setFiltro] = useState('');
-  const [patronFiltro, setPatronFiltro] = useState('TODOS');
+  const [patronFiltro, setPatronFiltro] = useState<string>('TODOS');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [ejercicioActual, setEjercicioActual] = useState(ejercicioInicial);
+  const [ejercicioActual, setEjercicioActual] = useState<Ejercicio>(ejercicioInicial);
   const [editando, setEditando] = useState(false);
   const [ordenAsc, setOrdenAsc] = useState(true);
-  const [ordenCampo, setOrdenCampo] = useState('nombre');
+  const [ordenCampo, setOrdenCampo] = useState<keyof Ejercicio>('nombre');
 
   useEffect(() => { cargarEjercicios(); }, []);
 
@@ -53,14 +54,14 @@ const Ejercicios = () => {
     setDialogOpen(true);
   };
 
-  const abrirEditar = (ejercicio) => {
+  const abrirEditar = (ejercicio: Ejercicio) => {
     setEjercicioActual(ejercicio);
     setEditando(true);
     setDialogOpen(true);
   };
 
   const guardar = () => {
-    const operacion = editando
+    const operacion = editando && ejercicioActual.id
       ? ejercicioService.update(ejercicioActual.id, ejercicioActual)
       : ejercicioService.create(ejercicioActual);
     operacion.then(() => {
@@ -69,13 +70,14 @@ const Ejercicios = () => {
     });
   };
 
-  const eliminar = (id) => {
+  const eliminar = (id?: number) => {
+    if (!id) return;
     if (window.confirm('¿Seguro que querés eliminar este ejercicio?')) {
       ejercicioService.delete(id).then(cargarEjercicios);
     }
   };
 
-  const handleSort = (campo) => {
+  const handleSort = (campo: keyof Ejercicio) => {
     const isAsc = ordenCampo === campo && ordenAsc;
     setOrdenAsc(!isAsc);
     setOrdenCampo(campo);
@@ -96,18 +98,19 @@ const Ejercicios = () => {
 
   return (
     <Box>
-      {/* Header */}
       {/* 1. Header de Página */}
       <Box
-        display="flex"
-        flexDirection={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
-        gap={2}
-        mb={4}
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'flex-start' },
+          gap: 2,
+          mb: 4
+        }}
       >
         <Box>
-          <Box display="flex" alignItems="center" gap={1.5}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Typography
               variant="h4"
               sx={{
@@ -163,31 +166,33 @@ const Ejercicios = () => {
 
       {/* 2. Filter and Search Bar */}
       <Paper elevation={1} sx={{ p: 3, mb: 4, borderRadius: 3.5 }}>
-        <Box display="flex" flexDirection={{ xs: 'column', lg: 'row' }} gap={2} alignItems="center" justifyContent="space-between">
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
           <TextField
             fullWidth
             size="small"
             placeholder="Buscar por nombre o descripción..."
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: '#94a3b8' }} />
-                </InputAdornment>
-              ),
-              endAdornment: filtro ? (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setFiltro('')}>
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              ) : null
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#94a3b8' }} />
+                  </InputAdornment>
+                ),
+                endAdornment: filtro ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setFiltro('')}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : undefined
+              }
             }}
             sx={{ maxWidth: { lg: 400 } }}
           />
 
-          <Stack direction="row" spacing={1} overflow="auto" maxWidth="100%" pb={{ xs: 1, lg: 0 }}>
+          <Stack direction="row" spacing={1} sx={{ overflow: 'auto', maxWidth: '100%', pb: { xs: 1, lg: 0 } }}>
             {['TODOS', 'MOVILIDAD', 'CORE', 'EMPUJE', 'TRACCION', 'RODILLA', 'CADERA'].map((p) => {
               const active = patronFiltro === p;
               return (
@@ -328,9 +333,9 @@ const Ejercicios = () => {
             {ejerciciosFiltrados.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
-                  <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
                     <FitnessCenterIcon sx={{ fontSize: 48, color: '#cbd5e1' }} />
-                    <Typography variant="body1" fontWeight={700} color="#0f172a">
+                    <Typography variant="body1" sx={{ fontWeight: 700, color: '#0f172a' }}>
                       No se encontraron ejercicios
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -350,10 +355,10 @@ const Ejercicios = () => {
         onClose={() => setDialogOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 4, p: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: 4, p: 1 } } }}
       >
         <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h5" fontWeight={800} color="#0f172a">
+          <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a' }}>
             {editando ? 'Editar Ejercicio' : 'Nuevo Ejercicio'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -365,7 +370,7 @@ const Ejercicios = () => {
         <DialogContent sx={{ pt: 3 }}>
           <Stack spacing={2.5}>
             <Box>
-              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
                 Nombre del ejercicio
               </Typography>
               <TextField
@@ -378,7 +383,7 @@ const Ejercicios = () => {
             </Box>
 
             <Box>
-              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
                 Patrón de movimiento
               </Typography>
               <TextField
@@ -386,7 +391,7 @@ const Ejercicios = () => {
                 select
                 size="small"
                 value={ejercicioActual.patronMovimiento}
-                onChange={(e) => setEjercicioActual({ ...ejercicioActual, patronMovimiento: e.target.value })}
+                onChange={(e) => setEjercicioActual({ ...ejercicioActual, patronMovimiento: e.target.value as PatronMovimiento })}
               >
                 {['MOVILIDAD', 'CORE', 'EMPUJE', 'TRACCION', 'RODILLA', 'CADERA'].map(g => (
                   <MenuItem key={g} value={g}>{g}</MenuItem>
@@ -395,7 +400,7 @@ const Ejercicios = () => {
             </Box>
 
             <Box>
-              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
                 Descripción y técnica
               </Typography>
               <TextField
@@ -404,20 +409,20 @@ const Ejercicios = () => {
                 rows={3}
                 size="small"
                 placeholder="Puntos clave de técnica, tempo, postura..."
-                value={ejercicioActual.descripcion}
+                value={ejercicioActual.descripcion || ''}
                 onChange={(e) => setEjercicioActual({ ...ejercicioActual, descripcion: e.target.value })}
               />
             </Box>
 
             <Box>
-              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
                 Link de Video Demostrativo (YouTube)
               </Typography>
               <TextField
                 fullWidth
                 size="small"
                 placeholder="https://www.youtube.com/watch?v=..."
-                value={ejercicioActual.videoUrl}
+                value={ejercicioActual.videoUrl || ''}
                 onChange={(e) => setEjercicioActual({ ...ejercicioActual, videoUrl: e.target.value })}
               />
             </Box>

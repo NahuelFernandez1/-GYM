@@ -16,14 +16,15 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import { pagoService, alumnoService } from '../services/api';
+import { Pago, Alumno, EstadoPago, MetodoPago, ResumenPagos } from '../types';
 
-const estadoStyles = {
+const estadoStyles: Record<EstadoPago, { bg: string; text: string; border: string; label: string }> = {
   PAGADO: { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', label: 'Pagado' },
   PENDIENTE: { bg: '#fef3c7', text: '#b45309', border: '#fde68a', label: 'Pendiente' },
   VENCIDO: { bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', label: 'Vencido' },
 };
 
-const metodoStyles = {
+const metodoStyles: Record<MetodoPago, { label: string; icon: React.ReactElement; color: string; bg: string }> = {
   EFECTIVO: { label: 'Efectivo', icon: <AttachMoneyIcon sx={{ fontSize: 15 }} />, color: '#16a34a', bg: '#f0fdf4' },
   TRANSFERENCIA: { label: 'Transferencia', icon: <CreditCardIcon sx={{ fontSize: 15 }} />, color: '#2563eb', bg: '#eff6ff' },
 };
@@ -31,7 +32,7 @@ const metodoStyles = {
 const hoy = new Date().toISOString().split('T')[0];
 const en30dias = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-const pagoInicial = {
+const pagoInicial: Pago = {
   alumno: null,
   monto: '',
   fechaPago: hoy,
@@ -50,7 +51,15 @@ const MESES = [
   { valor: '11', label: 'Noviembre' }, { valor: '12', label: 'Diciembre' },
 ];
 
-const KpiRevenueCard = ({ titulo, valor, icono, color, gradient }) => (
+interface KpiRevenueCardProps {
+  titulo: string;
+  valor: number | string;
+  icono: React.ReactElement;
+  color: string;
+  gradient?: string;
+}
+
+const KpiRevenueCard: React.FC<KpiRevenueCardProps> = ({ titulo, valor, icono, color, gradient }) => (
   <Card
     sx={{
       position: 'relative',
@@ -76,8 +85,8 @@ const KpiRevenueCard = ({ titulo, valor, icono, color, gradient }) => (
       }}
     />
     <CardContent sx={{ p: 3, '&:last-child': { pb: 3 }, position: 'relative', zIndex: 1 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ letterSpacing: '0.01em' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: '0.01em' }}>
           {titulo}
         </Typography>
         <Box
@@ -92,10 +101,10 @@ const KpiRevenueCard = ({ titulo, valor, icono, color, gradient }) => (
             color: color,
           }}
         >
-          {React.cloneElement(icono, { sx: { fontSize: 22, color } })}
+          {React.cloneElement(icono as React.ReactElement<any>, { sx: { fontSize: 22, color } })}
         </Box>
       </Box>
-      <Box mt={2}>
+      <Box sx={{ mt: 2 }}>
         <Typography
           variant="h3"
           sx={{
@@ -114,18 +123,18 @@ const KpiRevenueCard = ({ titulo, valor, icono, color, gradient }) => (
   </Card>
 );
 
-const Pagos = () => {
-  const [pagos, setPagos] = useState([]);
-  const [alumnos, setAlumnos] = useState([]);
-  const [resumen, setResumen] = useState({ recaudadoHoy: 0, recaudadoMes: 0 });
+const Pagos: React.FC = () => {
+  const [pagos, setPagos] = useState<Pago[]>([]);
+  const [alumnos, setAlumnos] = useState<Alumno[]>([]);
+  const [resumen, setResumen] = useState<ResumenPagos>({ recaudadoHoy: 0, recaudadoMes: 0 });
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [pagoActual, setPagoActual] = useState(pagoInicial);
+  const [pagoActual, setPagoActual] = useState<Pago>(pagoInicial);
   const [editando, setEditando] = useState(false);
 
   // Filtros
   const [filtroAlumno, setFiltroAlumno] = useState('');
   const [filtroMes, setFiltroMes] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState<string>('');
 
   useEffect(() => {
     cargarPagos();
@@ -147,14 +156,14 @@ const Pagos = () => {
     setDialogOpen(true);
   };
 
-  const abrirEditar = (pago) => {
+  const abrirEditar = (pago: Pago) => {
     setPagoActual(pago);
     setEditando(true);
     setDialogOpen(true);
   };
 
   const guardar = () => {
-    const operacion = editando
+    const operacion = editando && pagoActual.id
       ? pagoService.update(pagoActual.id, pagoActual)
       : pagoService.create(pagoActual);
     operacion.then(() => {
@@ -164,7 +173,8 @@ const Pagos = () => {
     });
   };
 
-  const eliminar = (id) => {
+  const eliminar = (id?: number) => {
+    if (!id) return;
     if (window.confirm('¿Seguro que querés eliminar este pago?')) {
       pagoService.delete(id).then(() => {
         cargarPagos();
@@ -185,15 +195,17 @@ const Pagos = () => {
     <Box>
       {/* 1. Header de Página */}
       <Box
-        display="flex"
-        flexDirection={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
-        gap={2}
-        mb={4}
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'flex-start' },
+          gap: 2,
+          mb: 4
+        }}
       >
         <Box>
-          <Box display="flex" alignItems="center" gap={1.5}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Typography
               variant="h4"
               sx={{
@@ -248,7 +260,7 @@ const Pagos = () => {
       </Box>
 
       {/* 2. Cards de Estadísticas */}
-      <Grid container spacing={3} mb={4}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 6 }}>
           <KpiRevenueCard
             titulo="Recaudado Hoy"
@@ -271,19 +283,21 @@ const Pagos = () => {
 
       {/* 3. Barra de Filtros */}
       <Paper elevation={1} sx={{ p: 3, mb: 4, borderRadius: 3.5 }}>
-        <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
           <TextField
             placeholder="Buscar por alumno..."
             size="small"
             value={filtroAlumno}
             onChange={(e) => setFiltroAlumno(e.target.value)}
             sx={{ flex: 1, minWidth: 240 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: '#94a3b8' }} fontSize="small" />
-                </InputAdornment>
-              )
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#94a3b8' }} fontSize="small" />
+                  </InputAdornment>
+                )
+              }
             }}
           />
           <TextField
@@ -423,9 +437,9 @@ const Pagos = () => {
             {pagosFiltrados.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
-                  <Box display="flex" flexDirection="column" alignItems="center" gap={1.5}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
                     <ReceiptLongIcon sx={{ fontSize: 48, color: '#cbd5e1' }} />
-                    <Typography variant="body1" fontWeight={700} color="#0f172a">
+                    <Typography variant="body1" sx={{ fontWeight: 700, color: '#0f172a' }}>
                       No se encontraron pagos registrados
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -445,10 +459,10 @@ const Pagos = () => {
         onClose={() => setDialogOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 4, p: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: 4, p: 1 } } }}
       >
         <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h5" fontWeight={800} color="#0f172a">
+          <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a' }}>
             {editando ? 'Editar Pago' : 'Registrar Nuevo Pago'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -466,7 +480,7 @@ const Pagos = () => {
               size="small"
               value={pagoActual.alumno?.id || ''}
               onChange={(e) => {
-                const alumno = alumnos.find(a => a.id === e.target.value);
+                const alumno = alumnos.find(a => a.id === Number(e.target.value)) || null;
                 setPagoActual({ ...pagoActual, alumno });
               }}
             >
@@ -481,14 +495,16 @@ const Pagos = () => {
               type="number"
               size="small"
               value={pagoActual.monto}
-              InputLabelProps={{ shrink: true }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: { startAdornment: <InputAdornment position="start">$</InputAdornment> }
+              }}
               onChange={(e) => setPagoActual({ ...pagoActual, monto: e.target.value })}
-              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
             />
 
-            <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }}>
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
                   Fecha de pago
                 </Typography>
                 <TextField
@@ -500,7 +516,7 @@ const Pagos = () => {
                 />
               </Box>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
                   Fecha de vencimiento
                 </Typography>
                 <TextField
@@ -513,9 +529,9 @@ const Pagos = () => {
               </Box>
             </Box>
 
-            <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }}>
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
                   Método de pago
                 </Typography>
                 <TextField
@@ -523,14 +539,14 @@ const Pagos = () => {
                   select
                   size="small"
                   value={pagoActual.metodoPago}
-                  onChange={(e) => setPagoActual({ ...pagoActual, metodoPago: e.target.value })}
+                  onChange={(e) => setPagoActual({ ...pagoActual, metodoPago: e.target.value as MetodoPago })}
                 >
                   <MenuItem value="EFECTIVO">Efectivo</MenuItem>
                   <MenuItem value="TRANSFERENCIA">Transferencia</MenuItem>
                 </TextField>
               </Box>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block', textTransform: 'uppercase' }}>
                   Estado
                 </Typography>
                 <TextField
@@ -538,7 +554,7 @@ const Pagos = () => {
                   select
                   size="small"
                   value={pagoActual.estado}
-                  onChange={(e) => setPagoActual({ ...pagoActual, estado: e.target.value })}
+                  onChange={(e) => setPagoActual({ ...pagoActual, estado: e.target.value as EstadoPago })}
                 >
                   <MenuItem value="PAGADO">Pagado</MenuItem>
                   <MenuItem value="PENDIENTE">Pendiente</MenuItem>
@@ -554,8 +570,8 @@ const Pagos = () => {
               rows={2}
               size="small"
               placeholder="Número de comprobante, plan elegido, etc."
-              value={pagoActual.notas}
-              InputLabelProps={{ shrink: true }}
+              value={pagoActual.notas || ''}
+              slotProps={{ inputLabel: { shrink: true } }}
               onChange={(e) => setPagoActual({ ...pagoActual, notas: e.target.value })}
             />
           </Stack>

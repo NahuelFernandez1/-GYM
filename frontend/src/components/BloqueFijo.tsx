@@ -10,12 +10,34 @@ import EditIcon from '@mui/icons-material/Edit';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import Autocomplete from '@mui/material/Autocomplete';
 import { ejercicioFijoPlanService } from '../services/api';
+import { Ejercicio, EjercicioFijoPlan, PatronMovimiento, TipoBloqueFijo } from '../types';
 
-const BloqueFijo = ({ planificacionId, tipoBloque, titulo, catalogoEjercicios, patronFiltro }) => {
-  const [items, setItems] = useState([]);
-  const [nuevaFila, setNuevaFila] = useState(null);
-  const [editandoId, setEditandoId] = useState(null);
-  const [filaEdicion, setFilaEdicion] = useState(null);
+interface BloqueFijoProps {
+  planificacionId: number | string;
+  tipoBloque: TipoBloqueFijo;
+  titulo: string;
+  catalogoEjercicios: Ejercicio[];
+  patronFiltro?: PatronMovimiento;
+}
+
+interface FilaDraft {
+  id?: number;
+  ejercicioId?: number;
+  seriesReps?: string;
+  orden?: number;
+}
+
+const BloqueFijo: React.FC<BloqueFijoProps> = ({
+  planificacionId,
+  tipoBloque,
+  titulo,
+  catalogoEjercicios,
+  patronFiltro,
+}) => {
+  const [items, setItems] = useState<EjercicioFijoPlan[]>([]);
+  const [nuevaFila, setNuevaFila] = useState<FilaDraft | null>(null);
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [filaEdicion, setFilaEdicion] = useState<FilaDraft | null>(null);
 
   useEffect(() => {
     cargar();
@@ -34,10 +56,10 @@ const BloqueFijo = ({ planificacionId, tipoBloque, titulo, catalogoEjercicios, p
 
   const guardarNuevo = () => {
     if (!nuevaFila?.ejercicioId) return;
-    const item = {
-      planificacion: { id: parseInt(planificacionId) },
+    const item: Partial<EjercicioFijoPlan> = {
+      planificacion: { id: Number(planificacionId) },
       tipoBloque,
-      ejercicio: { id: nuevaFila.ejercicioId },
+      ejercicio: { id: nuevaFila.ejercicioId } as Ejercicio,
       seriesReps: nuevaFila.seriesReps || '',
       orden: items.length + 1,
     };
@@ -47,19 +69,23 @@ const BloqueFijo = ({ planificacionId, tipoBloque, titulo, catalogoEjercicios, p
     });
   };
 
-  const eliminar = (id) => {
+  const eliminar = (id?: number) => {
+    if (!id) return;
     ejercicioFijoPlanService.delete(id).then(cargar);
   };
 
-  const abrirEditar = (item) => {
+  const abrirEditar = (item: EjercicioFijoPlan) => {
+    if (!item.id) return;
     setEditandoId(item.id);
     setFilaEdicion({ ...item, ejercicioId: item.ejercicio?.id });
   };
 
   const guardarEdicion = () => {
-    const item = {
+    if (!editandoId || !filaEdicion?.ejercicioId) return;
+    const item: Partial<EjercicioFijoPlan> = {
       ...filaEdicion,
-      ejercicio: { id: filaEdicion.ejercicioId },
+      tipoBloque,
+      ejercicio: { id: filaEdicion.ejercicioId } as Ejercicio,
     };
     ejercicioFijoPlanService.update(editandoId, item).then(() => {
       cargar();
@@ -82,11 +108,11 @@ const BloqueFijo = ({ planificacionId, tipoBloque, titulo, catalogoEjercicios, p
           justifyContent: 'space-between'
         }}
       >
-        <Box display="flex" alignItems="center" gap={1.2}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
           <Box sx={{ p: 0.8, borderRadius: 2, bgcolor: '#e0f2fe', color: '#0369a1', display: 'flex' }}>
             <FitnessCenterIcon sx={{ fontSize: 18 }} />
           </Box>
-          <Typography variant="subtitle1" fontWeight={700} color="#0f172a">
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
             {titulo}
           </Typography>
         </Box>
@@ -109,7 +135,7 @@ const BloqueFijo = ({ planificacionId, tipoBloque, titulo, catalogoEjercicios, p
         <TableBody>
           {items.map((item, idx) => (
             <TableRow key={item.id} hover sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
-              {editandoId === item.id ? (
+              {editandoId === item.id && filaEdicion ? (
                 <>
                   <TableCell sx={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>{idx + 1}</TableCell>
                   <TableCell>
@@ -118,7 +144,7 @@ const BloqueFijo = ({ planificacionId, tipoBloque, titulo, catalogoEjercicios, p
                       options={opciones}
                       getOptionLabel={(e) => e.nombre || ''}
                       value={catalogoEjercicios.find(e => e.id === filaEdicion.ejercicioId) || null}
-                      onChange={(e, newValue) => setFilaEdicion(prev => ({ ...prev, ejercicioId: newValue?.id }))}
+                      onChange={(_, newValue) => setFilaEdicion(prev => ({ ...prev, ejercicioId: newValue?.id }))}
                       renderInput={(params) => <TextField {...params} variant="standard" size="small" />}
                       sx={{ minWidth: 200 }}
                     />
@@ -177,7 +203,7 @@ const BloqueFijo = ({ planificacionId, tipoBloque, titulo, catalogoEjercicios, p
                     const input = inputValue.toLowerCase();
                     return options.filter(o => o.nombre.toLowerCase().includes(input));
                   }}
-                  onChange={(e, newValue) => setNuevaFila(prev => ({ ...prev, ejercicioId: newValue?.id }))}
+                  onChange={(_, newValue) => setNuevaFila(prev => ({ ...prev, ejercicioId: newValue?.id }))}
                   renderInput={(params) => (
                     <TextField {...params} placeholder="Buscar ejercicio..." variant="standard" size="small" />
                   )}

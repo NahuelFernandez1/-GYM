@@ -23,7 +23,11 @@ const menuItems = [
   { texto: 'Planificaciones', icono: <AssignmentIcon />, ruta: '/planificaciones' },
 ];
 
-const Layout = ({ children }) => {
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -118,9 +122,13 @@ const Layout = ({ children }) => {
                 </ListItemIcon>
                 <ListItemText
                   primary={item.texto}
-                  primaryTypographyProps={{
-                    fontSize: '0.9rem',
-                    fontWeight: selected ? 700 : 500,
+                  slotProps={{
+                    primary: {
+                      sx: {
+                        fontSize: '0.9rem',
+                        fontWeight: selected ? 700 : 500,
+                      }
+                    }
                   }}
                 />
               </ListItemButton>
@@ -171,7 +179,7 @@ const Layout = ({ children }) => {
         }}
       >
         <Toolbar sx={{ minHeight: '64px !important', px: { xs: 2, sm: 3.5 }, display: 'flex', justifyContent: 'space-between' }}>
-          <Box display="flex" alignItems="center" gap={1.5}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <IconButton
               color="inherit"
               edge="start"
@@ -185,7 +193,7 @@ const Layout = ({ children }) => {
             </Typography>
           </Box>
 
-          <Box display="flex" alignItems="center" gap={2}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Chip
               label="Sistema Activo"
               size="small"
@@ -240,7 +248,7 @@ const Layout = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, sm: 3.5, md: 4 },
+          p: { xs: 2.5, sm: 3.5, md: 4 },
           width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
           mt: '64px',
           minHeight: 'calc(100vh - 64px)',

@@ -10,8 +10,6 @@ import Ejercicios from './pages/Ejercicios';
 import Planificaciones from './pages/Planificaciones';
 import DetallePlanificacion from './pages/DetallePlanificacion';
 
-
-
 const theme = createTheme({
   palette: {
     primary: {
@@ -82,9 +80,9 @@ const theme = createTheme({
           '&:active': {
             transform: 'translateY(0)',
           },
-        },
-        containedPrimary: {
-          background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+          '&.MuiButton-containedPrimary': {
+            background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+          },
         },
         outlined: {
           borderWidth: '1.5px',

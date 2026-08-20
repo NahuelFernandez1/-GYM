@@ -14,8 +14,19 @@ import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { dashboardService } from '../services/api';
+import { DashboardKPIs } from '../types';
 
-const KpiCard = ({ titulo, valor, icono, color, gradient, subtitulo, onClick }) => (
+interface KpiCardProps {
+  titulo: string;
+  valor: number | string;
+  icono: React.ReactElement;
+  color: string;
+  gradient?: string;
+  subtitulo?: string;
+  onClick?: () => void;
+}
+
+const KpiCard: React.FC<KpiCardProps> = ({ titulo, valor, icono, color, gradient, subtitulo, onClick }) => (
   <Card
     onClick={onClick}
     sx={{
@@ -50,7 +61,7 @@ const KpiCard = ({ titulo, valor, icono, color, gradient, subtitulo, onClick }) 
     />
 
     <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
         <Box
           sx={{
             width: 48,
@@ -63,7 +74,7 @@ const KpiCard = ({ titulo, valor, icono, color, gradient, subtitulo, onClick }) 
             color: color,
           }}
         >
-          {React.cloneElement(icono, { sx: { fontSize: 26, color } })}
+          {React.cloneElement(icono as React.ReactElement<any>, { sx: { fontSize: 26, color } })}
         </Box>
         {subtitulo && (
           <Chip
@@ -80,7 +91,7 @@ const KpiCard = ({ titulo, valor, icono, color, gradient, subtitulo, onClick }) 
         )}
       </Box>
 
-      <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ mb: 0.5 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
         {titulo}
       </Typography>
 
@@ -99,8 +110,8 @@ const KpiCard = ({ titulo, valor, icono, color, gradient, subtitulo, onClick }) 
   </Card>
 );
 
-const Dashboard = () => {
-  const [kpis, setKpis] = useState(null);
+const Dashboard: React.FC = () => {
+  const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -118,7 +129,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="50vh" gap={2}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: 2 }}>
         <CircularProgress color="primary" size={44} thickness={4} />
         <Typography variant="body2" color="text.secondary">Cargando métricas del gimnasio...</Typography>
       </Box>
@@ -154,9 +165,9 @@ const Dashboard = () => {
           }}
         />
 
-        <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} gap={2} position="relative" zIndex={1}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 2, position: 'relative', zIndex: 1 }}>
           <Box>
-            <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
               <Chip
                 icon={<TrendingUpIcon style={{ color: '#22c55e' }} />}
                 label="Panel en vivo"
@@ -164,7 +175,7 @@ const Dashboard = () => {
                 sx={{ bgcolor: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', fontWeight: 700, fontSize: '0.75rem', border: '1px solid rgba(34, 197, 94, 0.3)' }}
               />
             </Stack>
-            <Typography variant="h4" fontWeight={800} sx={{ color: '#ffffff', mb: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: '#ffffff', mb: 0.5 }}>
               ¡Hola de nuevo, Coach! 👋
             </Typography>
             <Typography variant="body1" sx={{ color: '#94a3b8', maxWidth: 600 }}>
@@ -187,9 +198,14 @@ const Dashboard = () => {
               onClick={() => navigate('/pagos')}
               sx={{
                 color: '#ffffff',
-                borderColor: 'rgba(255, 255, 255, 0.25)',
-                fontWeight: 600,
-                '&:hover': { borderColor: '#ffffff', bgcolor: 'rgba(255, 255, 255, 0.08)' }
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                fontWeight: 700,
+                px: 2.5,
+                py: 1.2,
+                '&:hover': {
+                  borderColor: '#ffffff',
+                  bgcolor: 'rgba(255, 255, 255, 0.05)'
+                }
               }}
             >
               Cobrar Cuota
@@ -199,11 +215,11 @@ const Dashboard = () => {
       </Paper>
 
       {/* KPI Cards Grid */}
-      <Typography variant="h6" fontWeight={700} mb={2.5} sx={{ color: '#0f172a' }}>
+      <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5, color: '#0f172a' }}>
         Métricas Principales
       </Typography>
 
-      <Grid container spacing={3} mb={5}>
+      <Grid container spacing={3} sx={{ mb: 5 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             titulo="Alumnos Activos"
@@ -251,7 +267,7 @@ const Dashboard = () => {
       </Grid>
 
       {/* Quick Access Shortcuts */}
-      <Typography variant="h6" fontWeight={700} mb={2.5} sx={{ color: '#0f172a' }}>
+      <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5, color: '#0f172a' }}>
         Accesos Rápidos
       </Typography>
 
@@ -273,12 +289,12 @@ const Dashboard = () => {
               }
             }}
           >
-            <Box display="flex" alignItems="center" gap={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Box sx={{ p: 1.5, borderRadius: 3, bgcolor: '#dcfce7', color: '#15803d' }}>
                 <PeopleIcon />
               </Box>
               <Box>
-                <Typography variant="subtitle1" fontWeight={700} color="text.primary">
+                <Typography variant="subtitle1" color="text.primary" sx={{ fontWeight: 700 }}>
                   Gestión de Alumnos
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -307,12 +323,12 @@ const Dashboard = () => {
               }
             }}
           >
-            <Box display="flex" alignItems="center" gap={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Box sx={{ p: 1.5, borderRadius: 3, bgcolor: '#e0e7ff', color: '#4338ca' }}>
                 <AssignmentTurnedInIcon />
               </Box>
               <Box>
-                <Typography variant="subtitle1" fontWeight={700} color="text.primary">
+                <Typography variant="subtitle1" color="text.primary" sx={{ fontWeight: 700 }}>
                   Planificaciones
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -341,12 +357,12 @@ const Dashboard = () => {
               }
             }}
           >
-            <Box display="flex" alignItems="center" gap={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Box sx={{ p: 1.5, borderRadius: 3, bgcolor: '#fef3c7', color: '#b45309' }}>
                 <FitnessCenterIcon />
               </Box>
               <Box>
-                <Typography variant="subtitle1" fontWeight={700} color="text.primary">
+                <Typography variant="subtitle1" color="text.primary" sx={{ fontWeight: 700 }}>
                   Banco de Ejercicios
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
