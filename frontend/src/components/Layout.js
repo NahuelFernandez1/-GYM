@@ -26,44 +26,77 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-const drawer = (
-    <Box>
-      <Box sx={{ bgcolor: '#000000', p: 1 }} />
+  const drawer = (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#ffffff' }}>
+      <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#0f172a' }}>
+        <img src="/logo.png" alt="MASGYM" style={{ height: 44, maxWidth: '100%', objectFit: 'contain' }} />
+      </Box>
       <Divider />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.texto} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.ruta}
-              onClick={() => navigate(item.ruta)}
-              sx={{
-                '&.Mui-selected': {
-                  bgcolor: 'primary.light',
-                  color: 'white',
-                  '& .MuiListItemIcon-root': { color: 'white' },
-                },
-                '&:hover': {
-                  bgcolor: 'primary.light',
-                  color: 'white',
-                  '& .MuiListItemIcon-root': { color: 'white' },
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: 'primary.main' }}>
-                {item.icono}
-              </ListItemIcon>
-              <ListItemText primary={item.texto} />
-            </ListItemButton>
-          </ListItem>
-        ))}
+      <List sx={{ px: 1.5, py: 2 }}>
+        {menuItems.map((item) => {
+          const selected = location.pathname === item.ruta || (item.ruta !== '/' && location.pathname.startsWith(item.ruta));
+          return (
+            <ListItem key={item.texto} disablePadding sx={{ mb: 0.8 }}>
+              <ListItemButton
+                selected={selected}
+                onClick={() => {
+                  navigate(item.ruta);
+                  setMobileOpen(false);
+                }}
+                sx={{
+                  borderRadius: 2,
+                  py: 1.2,
+                  px: 2,
+                  transition: 'all 0.2s ease',
+                  '&.Mui-selected': {
+                    bgcolor: 'primary.main',
+                    color: '#ffffff',
+                    boxShadow: '0 4px 12px rgba(46, 125, 50, 0.25)',
+                    '& .MuiListItemIcon-root': { color: '#ffffff' },
+                    '&:hover': {
+                      bgcolor: 'primary.dark',
+                    },
+                  },
+                  '&:not(.Mui-selected):hover': {
+                    bgcolor: 'rgba(46, 125, 50, 0.08)',
+                    color: 'primary.main',
+                    '& .MuiListItemIcon-root': { color: 'primary.main' },
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 38, color: selected ? '#ffffff' : 'text.secondary' }}>
+                  {item.icono}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.texto}
+                  primaryTypographyProps={{
+                    fontSize: '0.925rem',
+                    fontWeight: selected ? 600 : 500,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
       </List>
     </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor:'#000000'}}>
-        <Toolbar>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
+          ml: { sm: `${DRAWER_WIDTH}px` },
+          bgcolor: '#ffffff',
+          color: 'text.primary',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Toolbar sx={{ minHeight: 64, px: { xs: 2, sm: 3 } }}>
           <IconButton
             color="inherit"
             edge="start"
@@ -72,39 +105,56 @@ const drawer = (
           >
             <MenuIcon />
           </IconButton>
-          <img src="/logo.png" alt="MASGYM" style={{ height: 110, objectFit: 'contain' }} />
+          <Box sx={{ display: { xs: 'flex', sm: 'none' }, alignItems: 'center' }}>
+            <img src="/logo.png" alt="MASGYM" style={{ height: 32, objectFit: 'contain' }} />
+          </Box>
         </Toolbar>
       </AppBar>
 
-      <Drawer
-        variant="permanent"
+      <Box
+        component="nav"
+        sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}
+      >
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            display: { xs: 'block', sm: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH },
+          }}
+        >
+          {drawer}
+        </Drawer>
+
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: DRAWER_WIDTH,
+              borderRight: '1px solid',
+              borderColor: 'divider',
+            },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
+      </Box>
+
+      <Box
+        component="main"
         sx={{
-          width: DRAWER_WIDTH,
-          flexShrink: 0,
-          display: { xs: 'none', sm: 'block' },
-          '& .MuiDrawer-paper': {
-            width: DRAWER_WIDTH,
-            boxSizing: 'border-box',
-          },
+          flexGrow: 1,
+          p: { xs: 2.5, sm: 3.5, md: 4 },
+          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
+          mt: 8,
+          minHeight: 'calc(100vh - 64px)',
         }}
       >
-        <Toolbar sx={{ minHeight: '96px !important'}}/>
-        {drawer}
-      </Drawer>
-
-      <Drawer
-        variant="temporary"
-        open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        sx={{
-          display: { xs: 'block', sm: 'none' },
-          '& .MuiDrawer-paper': { width: DRAWER_WIDTH },
-        }}
-      >
-        {drawer}
-      </Drawer>
-
-      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 12 }}>
         {children}
       </Box>
     </Box>

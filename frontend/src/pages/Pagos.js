@@ -143,7 +143,7 @@ const Pagos = () => {
 
       {/* KPIs */}
       <Grid container spacing={3} mb={3}>
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <KpiCard
             titulo="Recaudado hoy"
             valor={resumen.recaudadoHoy || 0}
@@ -151,7 +151,7 @@ const Pagos = () => {
             color="#2e7d32"
           />
         </Grid>
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <KpiCard
             titulo="Recaudado este mes"
             valor={resumen.recaudadoMes || 0}

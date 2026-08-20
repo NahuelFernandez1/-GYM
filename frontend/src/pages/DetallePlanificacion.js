@@ -11,7 +11,6 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Autocomplete from '@mui/material/Autocomplete';
 import {
   planificacionService, semanaPlanService,

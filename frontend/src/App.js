@@ -27,17 +27,69 @@ const theme = createTheme({
       contrastText: '#000000',
     },
     background: {
-      default: '#f5f5f5',
+      default: '#f8fafc',
       paper: '#ffffff',
+    },
+    text: {
+      primary: '#1e293b',
+      secondary: '#64748b',
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h4: { fontWeight: 700 },
-    h5: { fontWeight: 700 },
-    h6: { fontWeight: 600 },
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h4: { fontWeight: 700, letterSpacing: '-0.02em', color: '#0f172a' },
+    h5: { fontWeight: 700, letterSpacing: '-0.01em', color: '#0f172a' },
+    h6: { fontWeight: 600, color: '#0f172a' },
+    button: { textTransform: 'none', fontWeight: 600 },
   },
-  shape: { borderRadius: 10 },
+  shape: { borderRadius: 12 },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          boxShadow: 'none',
+          '&:hover': {
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+          },
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+        },
+        elevation1: {
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+          border: '1px solid #e2e8f0',
+        },
+        elevation2: {
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+          border: '1px solid #e2e8f0',
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          borderColor: '#f1f5f9',
+          padding: '14px 16px',
+        },
+        head: {
+          fontWeight: 600,
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          fontWeight: 600,
+          borderRadius: 6,
+        },
+      },
+    },
+  },
 });
 
 function App() {

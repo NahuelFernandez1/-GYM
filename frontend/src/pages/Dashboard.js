@@ -54,16 +54,16 @@ const Dashboard = () => {
   );
 
   return (
-    <Box p={4}>
-      <Typography variant="h4" fontWeight="bold" mb={1}>
+    <Box>
+      <Typography variant="h4" fontWeight="bold" mb={0.5}>
         Dashboard
       </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
+      <Typography variant="body1" color="text.secondary" mb={3.5}>
         Resumen general del gimnasio
       </Typography>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             titulo="Alumnos activos"
             valor={kpis?.alumnosActivos ?? 0}
@@ -71,7 +71,7 @@ const Dashboard = () => {
             color="#1976d2"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             titulo="Pagos pendientes"
             valor={kpis?.pagosPendientes ?? 0}
@@ -79,7 +79,7 @@ const Dashboard = () => {
             color="#ed6c02"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             titulo="Pagos vencidos"
             valor={kpis?.pagosVencidos ?? 0}
@@ -87,7 +87,7 @@ const Dashboard = () => {
             color="#d32f2f"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
             titulo="Vencen en 7 días"
             valor={kpis?.alumnosProximosAVencer ?? 0}
