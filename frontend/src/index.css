@@ -40,6 +40,11 @@ h1, h2, h3, h4, h5, h6 {
   background: #94a3b8;
 }
 
+::selection {
+  background-color: #bbf7d0;
+  color: #14532d;
+}
+
 a {
   color: #16a34a;
   text-decoration: none;
@@ -49,3 +54,15 @@ a {
 a:hover {
   color: #15803d;
 }
+
+/* Number alignment */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Accessible focus ring */
+:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+

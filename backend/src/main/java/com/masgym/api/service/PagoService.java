@@ -1,7 +1,6 @@
 package com.masgym.api.service;
 
 import com.masgym.api.model.Pago;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 

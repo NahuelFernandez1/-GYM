@@ -149,7 +149,37 @@ const theme = createTheme({
       styleOverrides: {
         paper: {
           borderRadius: 18,
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        },
+      },
+    },
+    MuiBackdrop: {
+      styleOverrides: {
+        root: {
+          backdropFilter: 'blur(4px)',
+          backgroundColor: 'rgba(15, 23, 42, 0.45)',
+        },
+      },
+    },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          backgroundColor: '#0f172a',
+          color: '#ffffff',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          borderRadius: 8,
+          padding: '6px 12px',
+        },
+        arrow: {
+          color: '#0f172a',
+        },
+      },
+    },
+    MuiTableRow: {
+      styleOverrides: {
+        root: {
+          transition: 'background-color 0.15s ease',
         },
       },
     },
