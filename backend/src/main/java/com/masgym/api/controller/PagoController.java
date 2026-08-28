@@ -4,6 +4,8 @@ import com.masgym.api.model.Pago;
 import com.masgym.api.service.PagoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -66,8 +68,16 @@ public class PagoController {
     }
 
     @GetMapping("/resumen")
-    public ResponseEntity<Map<String, Object>> obtenerResumen() {
+    public ResponseEntity<Map<String, Object>> obtenerResumen(Authentication authentication) {
         Map<String, Object> resumen = new java.util.HashMap<>();
+
+        if (esProfesor(authentication)) {
+            resumen.put("recaudadoHoy", "****");
+            resumen.put("recaudadoMes", "****");
+            resumen.put("oculto", true);
+            resumen.put("totalPagos", pagoService.obtenerTodos().size());
+            return ResponseEntity.ok(resumen);
+        }
 
         LocalDate hoy = LocalDate.now();
         LocalDate inicioMes = hoy.withDayOfMonth(1);
@@ -90,8 +100,15 @@ public class PagoController {
 
         resumen.put("recaudadoHoy", recaudadoHoy);
         resumen.put("recaudadoMes", recaudadoMes);
+        resumen.put("oculto", false);
         resumen.put("totalPagos", pagoService.obtenerTodos().size());
 
         return ResponseEntity.ok(resumen);
+    }
+
+    private boolean esProfesor(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_PROFESOR"::equals);
     }
 }

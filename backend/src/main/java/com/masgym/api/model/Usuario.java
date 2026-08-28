@@ -1,5 +1,6 @@
 package com.masgym.api.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -19,11 +20,16 @@ public class Usuario {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String passwordHash;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String rol; // ADMIN o PROFESOR
+    private Rol rol;
+
+    @Column(nullable = false)
+    private boolean activo = true;
 
     @Column(updatable = false)
     private LocalDateTime createdAt;
