@@ -2,12 +2,54 @@ import axios from 'axios';
 import {
   Alumno, EstadoAlumno, Pago, ResumenPagos, Ejercicio,
   PatronMovimiento, Planificacion, SemanaPlan, DiaPlan,
-  EjercicioPlanificado, EjercicioFijoPlan, DashboardKPIs
+  EjercicioPlanificado, EjercicioFijoPlan, DashboardKPIs, Usuario
 } from '../types';
 
 const api = axios.create({
   baseURL: 'http://localhost:8080/api',
 });
+
+const TOKEN_KEY = 'masgym_token';
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem('masgym_usuario');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export interface LoginResponse {
+  token: string;
+  nombre: string;
+  email: string;
+  rol: 'ADMIN' | 'DUENO' | 'PROFESOR';
+}
+
+export const authService = {
+  login: (email: string, password: string) =>
+    api.post<LoginResponse>('/auth/login', { email, password }),
+};
+
+export const usuarioService = {
+  getAll: () => api.get<Usuario[]>('/usuarios'),
+  create: (usuario: Partial<Usuario>) => api.post<Usuario>('/usuarios', usuario),
+  update: (id: number | string, usuario: Partial<Usuario>) => api.put<Usuario>(`/usuarios/${id}`, usuario),
+};
 
 export const dashboardService = {
   getKpis: () => api.get<DashboardKPIs>('/dashboard'),

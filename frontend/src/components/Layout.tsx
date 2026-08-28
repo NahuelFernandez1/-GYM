@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Drawer, AppBar, Toolbar, List, ListItem,
   ListItemButton, ListItemIcon, ListItemText, IconButton,
-  Typography, Chip, Avatar
+  Typography, Chip, Avatar, Tooltip
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
@@ -12,6 +12,9 @@ import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import MenuIcon from '@mui/icons-material/Menu';
 import SportsGymnasticsIcon from '@mui/icons-material/SportsGymnastics';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { useAuth } from '../context/AuthContext';
 
 const DRAWER_WIDTH = 260;
 
@@ -23,6 +26,12 @@ const menuItems = [
   { texto: 'Planificaciones', icono: <AssignmentIcon />, ruta: '/planificaciones' },
 ];
 
+const rolLabels: Record<string, string> = {
+  ADMIN: 'Administrador',
+  DUENO: 'Dueño',
+  PROFESOR: 'Profesor',
+};
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -31,6 +40,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { usuario, logout } = useAuth();
+
+  const items = usuario?.rol === 'ADMIN'
+    ? [...menuItems, { texto: 'Usuarios', icono: <AdminPanelSettingsIcon />, ruta: '/usuarios' }]
+    : menuItems;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const getPageTitle = () => {
     if (location.pathname === '/') return 'Dashboard';
@@ -39,6 +58,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (location.pathname.startsWith('/ejercicios')) return 'Catálogo de Ejercicios';
     if (location.pathname.startsWith('/planificaciones/')) return 'Detalle de Planificación';
     if (location.pathname.startsWith('/planificaciones')) return 'Planificaciones';
+    if (location.pathname.startsWith('/usuarios')) return 'Gestión de Usuarios';
     return 'Panel';
   };
 
@@ -84,7 +104,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           Menú Principal
         </Typography>
 
-        {menuItems.map((item) => {
+        {items.map((item) => {
           const selected = location.pathname === item.ruta || (item.ruta !== '/' && location.pathname.startsWith(item.ruta));
           return (
             <ListItem key={item.texto} disablePadding sx={{ mb: 1 }}>
@@ -151,14 +171,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Avatar sx={{ bgcolor: '#16a34a', width: 36, height: 36, fontSize: '0.875rem', fontWeight: 700 }}>
           <SportsGymnasticsIcon fontSize="small" />
         </Avatar>
-        <Box sx={{ overflow: 'hidden' }}>
-          <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.8125rem', lineHeight: 1.2 }}>
-            +GYM Coach
+        <Box sx={{ overflow: 'hidden', flexGrow: 1 }}>
+          <Typography variant="body2" noWrap sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.8125rem', lineHeight: 1.2 }}>
+            {usuario?.nombre || '+GYM Coach'}
           </Typography>
           <Typography variant="caption" sx={{ color: '#22c55e', fontSize: '0.7rem', fontWeight: 600 }}>
-            ● Conectado
+            {usuario ? rolLabels[usuario.rol] || usuario.rol : '● Conectado'}
           </Typography>
         </Box>
+        <Tooltip title="Cerrar sesión">
+          <IconButton onClick={handleLogout} size="small" sx={{ color: '#94a3b8', '&:hover': { color: '#f87171' } }}>
+            <LogoutIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Box>
     </Box>
   );

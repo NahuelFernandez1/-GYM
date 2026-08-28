@@ -3,12 +3,16 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './context/AuthContext';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Alumnos from './pages/Alumnos';
 import Pagos from './pages/Pagos';
 import Ejercicios from './pages/Ejercicios';
 import Planificaciones from './pages/Planificaciones';
 import DetallePlanificacion from './pages/DetallePlanificacion';
+import Usuarios from './pages/Usuarios';
 
 const theme = createTheme({
   palette: {
@@ -198,16 +202,36 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
-        <Layout>
+        <AuthProvider>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/alumnos" element={<Alumnos />} />
-            <Route path="/pagos" element={<Pagos />} />
-            <Route path="/ejercicios" element={<Ejercicios />} />
-            <Route path="/planificaciones" element={<Planificaciones />} />
-            <Route path="/planificaciones/:id" element={<DetallePlanificacion />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="*"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/alumnos" element={<Alumnos />} />
+                      <Route path="/pagos" element={<Pagos />} />
+                      <Route path="/ejercicios" element={<Ejercicios />} />
+                      <Route path="/planificaciones" element={<Planificaciones />} />
+                      <Route path="/planificaciones/:id" element={<DetallePlanificacion />} />
+                      <Route
+                        path="/usuarios"
+                        element={
+                          <ProtectedRoute rolesPermitidos={['ADMIN']}>
+                            <Usuarios />
+                          </ProtectedRoute>
+                        }
+                      />
+                    </Routes>
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
-        </Layout>
+        </AuthProvider>
       </Router>
     </ThemeProvider>
   );

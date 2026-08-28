@@ -1,3 +1,15 @@
+export type Rol = 'ADMIN' | 'DUENO' | 'PROFESOR';
+
+export interface Usuario {
+  id?: number;
+  nombre: string;
+  email: string;
+  password?: string;
+  rol: Rol;
+  activo: boolean;
+  createdAt?: string;
+}
+
 export type EstadoAlumno = 'ACTIVO' | 'INACTIVO' | 'SUSPENDIDO';
 export type Sexo = 'MASCULINO' | 'FEMENINO' | 'OTRO';
 
@@ -34,8 +46,9 @@ export interface Pago {
 }
 
 export interface ResumenPagos {
-  recaudadoHoy: number;
-  recaudadoMes: number;
+  recaudadoHoy: number | string;
+  recaudadoMes: number | string;
+  oculto?: boolean;
 }
 
 export type PatronMovimiento = 'EMPUJE' | 'TRACCION' | 'MOVILIDAD' | 'CADERA' | 'RODILLA' | 'CORE';

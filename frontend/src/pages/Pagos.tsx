@@ -116,7 +116,9 @@ const KpiRevenueCard: React.FC<KpiRevenueCardProps> = ({ titulo, valor, icono, c
             lineHeight: 1.1
           }}
         >
-          ${Number(valor || 0).toLocaleString('es-AR')}
+          {typeof valor === 'string' && isNaN(Number(valor))
+            ? valor
+            : `$${Number(valor || 0).toLocaleString('es-AR')}`}
         </Typography>
       </Box>
     </CardContent>
