@@ -2,19 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Grid, Card, CardContent, Typography, CircularProgress,
-  Button, Chip, Stack, Paper
+  Button, Chip, Stack, Paper, Alert, AlertTitle, Dialog, DialogTitle,
+  DialogContent, DialogActions, List, ListItem, ListItemText, Divider
 } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import PaymentIcon from '@mui/icons-material/Payment';
 import WarningIcon from '@mui/icons-material/Warning';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { dashboardService } from '../services/api';
-import { DashboardKPIs } from '../types';
+import { DashboardKPIs, AlumnoPorVencer } from '../types';
 
 interface KpiCardProps {
   titulo: string;
@@ -112,6 +113,8 @@ const KpiCard: React.FC<KpiCardProps> = ({ titulo, valor, icono, color, gradient
 
 const Dashboard: React.FC = () => {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
+  const [planesPorVencer, setPlanesPorVencer] = useState<AlumnoPorVencer[]>([]);
+  const [dialogPlanesOpen, setDialogPlanesOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -125,7 +128,14 @@ const Dashboard: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
+
+    dashboardService.getPlanesPorVencer()
+      .then(res => setPlanesPorVencer(res.data))
+      .catch(err => console.error(err));
   }, []);
+
+  const vencidos = planesPorVencer.filter(p => p.vencido);
+  const proximos = planesPorVencer.filter(p => !p.vencido);
 
   if (loading) {
     return (
@@ -138,6 +148,32 @@ const Dashboard: React.FC = () => {
 
   return (
     <Box>
+      {/* Alerta de planes por vencer */}
+      {planesPorVencer.length > 0 && (
+        <Alert
+          severity={vencidos.length > 0 ? 'error' : 'warning'}
+          icon={<EventBusyIcon />}
+          sx={{ mb: 3, borderRadius: 3, alignItems: 'center' }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              sx={{ fontWeight: 700 }}
+              onClick={() => setDialogPlanesOpen(true)}
+            >
+              Ver detalle
+            </Button>
+          }
+        >
+          <AlertTitle sx={{ fontWeight: 700 }}>
+            {planesPorVencer.length} {planesPorVencer.length === 1 ? 'alumno tiene' : 'alumnos tienen'} el plan vencido o por vencer
+          </AlertTitle>
+          {vencidos.length > 0 && `${vencidos.length} vencido${vencidos.length === 1 ? '' : 's'}`}
+          {vencidos.length > 0 && proximos.length > 0 && ' · '}
+          {proximos.length > 0 && `${proximos.length} por vencer en los próximos 5 días`}
+        </Alert>
+      )}
+
       {/* Welcome Banner */}
       <Paper
         elevation={0}
@@ -255,13 +291,15 @@ const Dashboard: React.FC = () => {
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <KpiCard
-            titulo="Vencen en 7 días"
-            valor={kpis?.alumnosProximosAVencer ?? 0}
-            icono={<NotificationsActiveIcon />}
-            color="#8b5cf6"
-            gradient="linear-gradient(135deg, rgba(139, 92, 246, 0.4) 0%, rgba(139, 92, 246, 0) 100%)"
-            subtitulo="Próximos"
-            onClick={() => navigate('/pagos')}
+            titulo="Planes por vencer"
+            valor={planesPorVencer.length}
+            icono={<EventBusyIcon />}
+            color={vencidos.length > 0 ? '#ef4444' : '#f59e0b'}
+            gradient={vencidos.length > 0
+              ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.4) 0%, rgba(239, 68, 68, 0) 100%)'
+              : 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(245, 158, 11, 0) 100%)'}
+            subtitulo="Plan"
+            onClick={() => setDialogPlanesOpen(true)}
           />
         </Grid>
       </Grid>
@@ -374,6 +412,63 @@ const Dashboard: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Detalle de planes por vencer */}
+      <Dialog open={dialogPlanesOpen} onClose={() => setDialogPlanesOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Planes vencidos o por vencer</DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          {planesPorVencer.length === 0 ? (
+            <Typography sx={{ p: 3 }} color="text.secondary">
+              No hay planes vencidos ni por vencer.
+            </Typography>
+          ) : (
+            <List disablePadding>
+              {planesPorVencer.map((item, idx) => (
+                <React.Fragment key={item.alumnoId}>
+                  <ListItem
+                    sx={{
+                      py: 1.5,
+                      px: 3,
+                      borderLeft: '4px solid',
+                      borderLeftColor: item.vencido ? '#ef4444' : '#f59e0b',
+                    }}
+                    secondaryAction={
+                      <Chip
+                        label={item.vencido
+                          ? `Vencido hace ${Math.abs(item.diasRestantes)} día${Math.abs(item.diasRestantes) === 1 ? '' : 's'}`
+                          : item.diasRestantes === 0
+                            ? 'Vence hoy'
+                            : `Vence en ${item.diasRestantes} día${item.diasRestantes === 1 ? '' : 's'}`}
+                        size="small"
+                        sx={{
+                          bgcolor: item.vencido ? '#fee2e2' : '#fef3c7',
+                          color: item.vencido ? '#b91c1c' : '#b45309',
+                          fontWeight: 700,
+                          fontSize: '0.7rem',
+                        }}
+                      />
+                    }
+                  >
+                    <ListItemText
+                      primary={item.nombreCompleto}
+                      secondary={`Vencimiento: ${new Date(item.fechaVencimientoCuota + 'T00:00:00').toLocaleDateString('es-AR')}`}
+                      slotProps={{ primary: { sx: { fontWeight: 600 } } }}
+                      sx={{ pr: 14 }}
+                    />
+                  </ListItem>
+                  {idx < planesPorVencer.length - 1 && <Divider />}
+                </React.Fragment>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogPlanesOpen(false)}>Cerrar</Button>
+          <Button variant="contained" onClick={() => navigate('/alumnos')}>
+            Ir a Alumnos
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

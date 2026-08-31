@@ -114,5 +114,12 @@ export interface DashboardKPIs {
   alumnosActivos: number;
   pagosPendientes: number;
   pagosVencidos: number;
-  alumnosProximosAVencer: number;
+}
+
+export interface AlumnoPorVencer {
+  alumnoId: number;
+  nombreCompleto: string;
+  fechaVencimientoCuota: string;
+  diasRestantes: number;
+  vencido: boolean;
 }

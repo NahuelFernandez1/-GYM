@@ -2,7 +2,7 @@ import axios from 'axios';
 import {
   Alumno, EstadoAlumno, Pago, ResumenPagos, Ejercicio,
   PatronMovimiento, Planificacion, SemanaPlan, DiaPlan,
-  EjercicioPlanificado, EjercicioFijoPlan, DashboardKPIs, Usuario
+  EjercicioPlanificado, EjercicioFijoPlan, DashboardKPIs, Usuario, AlumnoPorVencer
 } from '../types';
 
 const api = axios.create({
@@ -53,6 +53,7 @@ export const usuarioService = {
 
 export const dashboardService = {
   getKpis: () => api.get<DashboardKPIs>('/dashboard'),
+  getPlanesPorVencer: () => api.get<AlumnoPorVencer[]>('/dashboard/planes-por-vencer'),
 };
 
 export const alumnoService = {
