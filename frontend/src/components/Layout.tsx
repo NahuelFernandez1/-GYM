@@ -79,11 +79,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)'
       }}>
-        <img
-          src="/logo.png"
-          alt="MASGYM"
-          style={{ height: 46, maxWidth: '100%', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}
-        />
+        <Box
+          sx={{
+            bgcolor: '#ffffff',
+            borderRadius: 3,
+            px: 2,
+            py: 1.2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
+          }}
+        >
+          <img
+            src="/logo.png"
+            alt="MASGYM"
+            style={{ height: 54, maxWidth: '100%', objectFit: 'contain' }}
+          />
+        </Box>
       </Box>
 
       {/* Menu List */}
