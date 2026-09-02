@@ -12,4 +12,6 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     List<Pago> findByEstado(String estado);
     List<Pago> findByFechaVencimientoBefore(LocalDate fecha); //trae los pagos cuya fecha de vencimiento es anteior a una fecha dada
     long countByEstado(String estado);
+    long countByAlumnoId(Long alumnoId);
+    boolean existsByAlumnoIdAndFechaVencimientoBetween(Long alumnoId, LocalDate desde, LocalDate hasta);
 }

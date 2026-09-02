@@ -15,6 +15,7 @@ import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import ClearIcon from '@mui/icons-material/Clear';
 import { ejercicioService } from '../services/api';
 import { Ejercicio, PatronMovimiento } from '../types';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const patronStyles: Record<PatronMovimiento, { bg: string; text: string; border: string; label: string }> = {
   EMPUJE: { bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', label: 'Empuje' },
@@ -41,6 +42,7 @@ const Ejercicios: React.FC = () => {
   const [editando, setEditando] = useState(false);
   const [ordenAsc, setOrdenAsc] = useState(true);
   const [ordenCampo, setOrdenCampo] = useState<keyof Ejercicio>('nombre');
+  const [ejercicioAEliminar, setEjercicioAEliminar] = useState<Ejercicio | null>(null);
 
   useEffect(() => { cargarEjercicios(); }, []);
 
@@ -70,11 +72,9 @@ const Ejercicios: React.FC = () => {
     });
   };
 
-  const eliminar = (id?: number) => {
-    if (!id) return;
-    if (window.confirm('¿Seguro que querés eliminar este ejercicio?')) {
-      ejercicioService.delete(id).then(cargarEjercicios);
-    }
+  const confirmarEliminar = () => {
+    if (!ejercicioAEliminar?.id) return;
+    ejercicioService.delete(ejercicioAEliminar.id).then(cargarEjercicios);
   };
 
   const handleSort = (campo: keyof Ejercicio) => {
@@ -319,7 +319,7 @@ const Ejercicios: React.FC = () => {
                     <Tooltip title="Eliminar Ejercicio">
                       <IconButton
                         size="small"
-                        onClick={() => eliminar(ejercicio.id)}
+                        onClick={() => setEjercicioAEliminar(ejercicio)}
                         sx={{ color: '#ef4444', '&:hover': { bgcolor: '#fee2e2' } }}
                       >
                         <DeleteIcon fontSize="small" />
@@ -438,6 +438,20 @@ const Ejercicios: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!ejercicioAEliminar}
+        titulo="Eliminar ejercicio"
+        mensaje={
+          <>
+            ¿Seguro que querés eliminar <strong>"{ejercicioAEliminar?.nombre}"</strong>? Esta acción no se puede deshacer.
+          </>
+        }
+        textoConfirmar="Eliminar"
+        colorConfirmar="error"
+        onConfirm={confirmarEliminar}
+        onClose={() => setEjercicioAEliminar(null)}
+      />
     </Box>
   );
 };

@@ -8,6 +8,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -17,6 +18,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "No se pudo guardar: el dato ya existe o falta un campo obligatorio."));
+    }
+
+    @ExceptionHandler(AlumnoConDatosAsociadosException.class)
+    public ResponseEntity<Map<String, Object>> handleAlumnoConDatosAsociados(AlumnoConDatosAsociadosException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "ALUMNO_CON_DATOS_ASOCIADOS");
+        body.put("mensaje", ex.getMessage());
+        body.put("cantidadPlanificaciones", ex.getCantidadPlanificaciones());
+        body.put("cantidadPagos", ex.getCantidadPagos());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(BadCredentialsException.class)

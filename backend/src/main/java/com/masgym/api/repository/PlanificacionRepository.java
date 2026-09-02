@@ -10,4 +10,5 @@ public interface PlanificacionRepository extends JpaRepository<Planificacion, Lo
     List<Planificacion> findByAlumnoId(Long alumnoId);
     List<Planificacion> findByEstado(String estado);
     List<Planificacion> findByCreadoPorId(Long usuarioId);
+    long countByAlumnoId(Long alumnoId);
 }

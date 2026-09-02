@@ -4,7 +4,7 @@ import {
   TableContainer, TableHead, TableRow, Paper, IconButton,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Chip, InputAdornment, Avatar, Tooltip,
-  Stack, Divider
+  Stack, Divider, Snackbar, Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -17,6 +17,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import ClearIcon from '@mui/icons-material/Clear';
 import { alumnoService } from '../services/api';
 import { Alumno, EstadoAlumno } from '../types';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const estadoStyles: Record<EstadoAlumno, { bg: string; text: string; border: string; label: string }> = {
   ACTIVO: { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', label: 'Activo' },
@@ -60,6 +61,13 @@ const Alumnos: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [alumnoActual, setAlumnoActual] = useState<AlumnoDraft>(alumnoInicial);
   const [editando, setEditando] = useState(false);
+  const [alumnoAEliminar, setAlumnoAEliminar] = useState<Alumno | null>(null);
+  const [bloqueoEliminar, setBloqueoEliminar] = useState<{ alumno: Alumno; mensaje: string } | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; mensaje: string; tipo: 'success' | 'error' }>({
+    open: false,
+    mensaje: '',
+    tipo: 'success',
+  });
 
   useEffect(() => { cargarAlumnos(); }, []);
 
@@ -98,11 +106,31 @@ const Alumnos: React.FC = () => {
     });
   };
 
-  const eliminar = (id?: number) => {
-    if (!id) return;
-    if (window.confirm('¿Seguro que querés eliminar este alumno?')) {
-      alumnoService.delete(id).then(cargarAlumnos);
-    }
+  const confirmarEliminar = () => {
+    if (!alumnoAEliminar?.id) return;
+    const alumno = alumnoAEliminar;
+    alumnoService.delete(alumno.id)
+      .then(() => cargarAlumnos())
+      .catch((err) => {
+        if (err.response?.status === 409) {
+          setBloqueoEliminar({ alumno, mensaje: err.response?.data?.mensaje || 'Tiene datos asociados.' });
+        } else {
+          setSnackbar({ open: true, mensaje: 'No se pudo eliminar el alumno.', tipo: 'error' });
+        }
+      });
+  };
+
+  const marcarInactivo = () => {
+    if (!bloqueoEliminar?.alumno.id) return;
+    const { alumno } = bloqueoEliminar;
+    alumnoService.update(alumno.id!, { ...alumno, estado: 'INACTIVO' })
+      .then(() => {
+        cargarAlumnos();
+        setSnackbar({ open: true, mensaje: `${alumno.nombre} fue marcado como Inactivo`, tipo: 'success' });
+      })
+      .catch(() => {
+        setSnackbar({ open: true, mensaje: 'No se pudo actualizar el estado del alumno.', tipo: 'error' });
+      });
   };
 
   const alumnosFiltrados = alumnos.filter(a => {
@@ -339,7 +367,7 @@ const Alumnos: React.FC = () => {
                     <Tooltip title="Eliminar Alumno">
                       <IconButton
                         size="small"
-                        onClick={() => eliminar(alumno.id)}
+                        onClick={() => setAlumnoAEliminar(alumno)}
                         sx={{ color: '#ef4444', '&:hover': { bgcolor: '#fee2e2' } }}
                       >
                         <DeleteIcon fontSize="small" />
@@ -528,6 +556,53 @@ const Alumnos: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!alumnoAEliminar}
+        titulo="Eliminar alumno"
+        mensaje={
+          <>
+            ¿Seguro que querés eliminar a <strong>"{alumnoAEliminar?.nombre} {alumnoAEliminar?.apellido}"</strong>? Esta acción no se puede deshacer.
+          </>
+        }
+        textoConfirmar="Eliminar"
+        colorConfirmar="error"
+        onConfirm={confirmarEliminar}
+        onClose={() => setAlumnoAEliminar(null)}
+      />
+
+      <ConfirmDialog
+        open={!!bloqueoEliminar}
+        titulo="No se puede eliminar"
+        mensaje={
+          bloqueoEliminar && (
+            <>
+              No se puede eliminar a <strong>{bloqueoEliminar.alumno.nombre} {bloqueoEliminar.alumno.apellido}</strong>: {bloqueoEliminar.mensaje} Podés marcarlo como Inactivo en su lugar.
+            </>
+          )
+        }
+        textoConfirmar="Marcar como Inactivo"
+        textoCancelar="Cerrar"
+        colorConfirmar="warning"
+        onConfirm={marcarInactivo}
+        onClose={() => setBloqueoEliminar(null)}
+      />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3500}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.tipo}
+          variant="filled"
+          sx={{ fontWeight: 600 }}
+        >
+          {snackbar.mensaje}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

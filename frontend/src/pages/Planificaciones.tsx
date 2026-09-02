@@ -19,6 +19,7 @@ import { planificacionService, alumnoService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import Autocomplete from '@mui/material/Autocomplete';
 import { Planificacion, Alumno, EstadoPlanificacion } from '../types';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const estadoStyles: Record<EstadoPlanificacion, { bg: string; text: string; border: string; label: string }> = {
   BORRADOR: { bg: '#f1f5f9', text: '#64748b', border: '#e2e8f0', label: 'Borrador' },
@@ -43,6 +44,7 @@ const Planificaciones: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [planActual, setPlanActual] = useState<Planificacion>(planInicial);
   const [editando, setEditando] = useState(false);
+  const [planAEliminar, setPlanAEliminar] = useState<Planificacion | null>(null);
 
   useEffect(() => {
     cargarPlanes();
@@ -83,11 +85,9 @@ const Planificaciones: React.FC = () => {
     });
   };
 
-  const eliminar = (id?: number) => {
-    if (!id) return;
-    if (window.confirm('¿Seguro que querés eliminar esta planificación?')) {
-      planificacionService.delete(id).then(cargarPlanes);
-    }
+  const confirmarEliminar = () => {
+    if (!planAEliminar?.id) return;
+    planificacionService.delete(planAEliminar.id).then(cargarPlanes);
   };
 
   const planesFiltrados = planes.filter(p => {
@@ -318,7 +318,7 @@ const Planificaciones: React.FC = () => {
                     <Tooltip title="Eliminar Rutina">
                       <IconButton
                         size="small"
-                        onClick={() => eliminar(plan.id)}
+                        onClick={() => setPlanAEliminar(plan)}
                         sx={{ color: '#ef4444', '&:hover': { bgcolor: '#fee2e2' } }}
                       >
                         <DeleteIcon fontSize="small" />
@@ -438,6 +438,20 @@ const Planificaciones: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!planAEliminar}
+        titulo="Eliminar planificación"
+        mensaje={
+          <>
+            ¿Seguro que querés eliminar <strong>"{planAEliminar?.nombre}"</strong>? Esta acción no se puede deshacer.
+          </>
+        }
+        textoConfirmar="Eliminar"
+        colorConfirmar="error"
+        onConfirm={confirmarEliminar}
+        onClose={() => setPlanAEliminar(null)}
+      />
     </Box>
   );
 };

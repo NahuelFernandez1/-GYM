@@ -1,7 +1,10 @@
 package com.masgym.api.service;
 
+import com.masgym.api.exception.AlumnoConDatosAsociadosException;
 import com.masgym.api.model.Alumno;
 import com.masgym.api.repository.AlumnoRepository;
+import com.masgym.api.repository.PagoRepository;
+import com.masgym.api.repository.PlanificacionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -12,6 +15,8 @@ import java.util.Optional;
 public class AlumnoServiceImpl implements AlumnoService {
 
     private final AlumnoRepository alumnoRepository;
+    private final PlanificacionRepository planificacionRepository;
+    private final PagoRepository pagoRepository;
 
     @Override
     public List<Alumno> obtenerTodos() {
@@ -40,7 +45,33 @@ public class AlumnoServiceImpl implements AlumnoService {
 
     @Override
     public void eliminar(Long id) {
+        long planificaciones = planificacionRepository.countByAlumnoId(id);
+        long pagos = pagoRepository.countByAlumnoId(id);
+
+        if (planificaciones > 0 || pagos > 0) {
+            throw new AlumnoConDatosAsociadosException(
+                    construirMensajeDatosAsociados(planificaciones, pagos),
+                    planificaciones,
+                    pagos
+            );
+        }
+
         alumnoRepository.deleteById(id);
+    }
+
+    private String construirMensajeDatosAsociados(long planificaciones, long pagos) {
+        StringBuilder sb = new StringBuilder("No se puede eliminar: el alumno tiene ");
+        if (planificaciones > 0) {
+            sb.append(planificaciones).append(planificaciones == 1 ? " planificación" : " planificaciones");
+        }
+        if (planificaciones > 0 && pagos > 0) {
+            sb.append(" y ");
+        }
+        if (pagos > 0) {
+            sb.append(pagos).append(pagos == 1 ? " pago" : " pagos");
+        }
+        sb.append(" asociado").append((planificaciones + pagos) == 1 ? "." : "s.");
+        return sb.toString();
     }
 
     @Override
