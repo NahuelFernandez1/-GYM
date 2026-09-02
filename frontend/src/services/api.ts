@@ -74,6 +74,7 @@ export const pagoService = {
   update: (id: number | string, pago: Partial<Pago>) => api.put<Pago>(`/pagos/${id}`, pago),
   delete: (id: number | string) => api.delete(`/pagos/${id}`),
   getResumen: () => api.get<ResumenPagos>('/pagos/resumen'),
+  generarMes: () => api.post<{ generados: number }>('/pagos/generar-mes'),
 };
 
 export const ejercicioService = {

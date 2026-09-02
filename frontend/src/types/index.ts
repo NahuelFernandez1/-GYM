@@ -38,10 +38,11 @@ export interface Pago {
   id?: number;
   alumno: Alumno | null;
   monto: number | string;
-  fechaPago: string;
+  fechaPago?: string | null;
   fechaVencimiento: string;
-  metodoPago: MetodoPago;
+  metodoPago?: MetodoPago | null;
   estado: EstadoPago;
+  estadoEfectivo?: EstadoPago;
   notas?: string;
 }
 

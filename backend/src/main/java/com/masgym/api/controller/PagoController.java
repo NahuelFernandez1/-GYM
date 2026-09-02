@@ -67,6 +67,14 @@ public class PagoController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/generar-mes")
+    public ResponseEntity<Map<String, Object>> generarPagosDelMes() {
+        int generados = pagoService.generarPagosDelMes();
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("generados", generados);
+        return ResponseEntity.ok(body);
+    }
+
     @GetMapping("/resumen")
     public ResponseEntity<Map<String, Object>> obtenerResumen(Authentication authentication) {
         Map<String, Object> resumen = new java.util.HashMap<>();

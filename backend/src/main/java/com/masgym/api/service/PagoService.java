@@ -13,4 +13,5 @@ public interface PagoService {
     Pago guardar(Pago pago);
     void eliminar(Long id);
     long contarPorEstado(String estado);
+    int generarPagosDelMes();
 }

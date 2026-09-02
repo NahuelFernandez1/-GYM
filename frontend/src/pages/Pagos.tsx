@@ -4,7 +4,7 @@ import {
   TableContainer, TableHead, TableRow, Paper, IconButton,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Chip, InputAdornment, Card, CardContent,
-  Grid, Tooltip, Stack, Divider
+  Grid, Tooltip, Stack, Divider, Snackbar, Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -15,8 +15,11 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import { pagoService, alumnoService } from '../services/api';
 import { Pago, Alumno, EstadoPago, MetodoPago, ResumenPagos } from '../types';
+import { useAuth } from '../context/AuthContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const estadoStyles: Record<EstadoPago, { bg: string; text: string; border: string; label: string }> = {
   PAGADO: { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', label: 'Pagado' },
@@ -138,6 +141,18 @@ const Pagos: React.FC = () => {
   const [filtroMes, setFiltroMes] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<string>('');
 
+  const [generando, setGenerando] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; mensaje: string; tipo: 'success' | 'error' }>({
+    open: false,
+    mensaje: '',
+    tipo: 'success',
+  });
+
+  const { usuario } = useAuth();
+  const puedeGenerarPagos = usuario?.rol === 'ADMIN' || usuario?.rol === 'DUENO';
+
+  const [pagoAEliminar, setPagoAEliminar] = useState<Pago | null>(null);
+
   useEffect(() => {
     cargarPagos();
     cargarResumen();
@@ -175,14 +190,42 @@ const Pagos: React.FC = () => {
     });
   };
 
-  const eliminar = (id?: number) => {
-    if (!id) return;
-    if (window.confirm('¿Seguro que querés eliminar este pago?')) {
-      pagoService.delete(id).then(() => {
-        cargarPagos();
-        cargarResumen();
-      });
-    }
+  const generarPagosDelMes = () => {
+    setGenerando(true);
+    pagoService.generarMes()
+      .then((res) => {
+        const { generados } = res.data;
+        setSnackbar({
+          open: true,
+          mensaje: generados > 0
+            ? `Se generaron ${generados} pago${generados === 1 ? '' : 's'} nuevo${generados === 1 ? '' : 's'}.`
+            : 'No hay pagos nuevos para generar este mes.',
+          tipo: 'success',
+        });
+        if (generados > 0) {
+          cargarPagos();
+          cargarResumen();
+        }
+      })
+      .catch(() => {
+        setSnackbar({ open: true, mensaje: 'No se pudieron generar los pagos del mes.', tipo: 'error' });
+      })
+      .finally(() => setGenerando(false));
+  };
+
+  const confirmarEliminar = () => {
+    if (!pagoAEliminar?.id) return;
+    pagoService.delete(pagoAEliminar.id).then(() => {
+      cargarPagos();
+      cargarResumen();
+    });
+  };
+
+  const mesAnioDe = (fecha?: string | null) => {
+    if (!fecha) return '—';
+    const [anio, mes] = fecha.split('-');
+    const nombreMes = MESES.find(m => m.valor === mes)?.label || mes;
+    return `${nombreMes} ${anio}`;
   };
 
   const pagosFiltrados = pagos.filter(p => {
@@ -244,21 +287,28 @@ const Pagos: React.FC = () => {
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={abrirNuevo}
-          sx={{
-            fontWeight: 700,
-            px: 3,
-            py: 1.2,
-            alignSelf: { xs: 'flex-start', sm: 'center' },
-            flexShrink: 0
-          }}
-        >
-          Nuevo pago
-        </Button>
+        <Stack direction="row" spacing={1.5} sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexShrink: 0 }}>
+          {puedeGenerarPagos && (
+            <Button
+              variant="outlined"
+              startIcon={<EventRepeatIcon />}
+              onClick={generarPagosDelMes}
+              disabled={generando}
+              sx={{ fontWeight: 700, px: 2.5, py: 1.2 }}
+            >
+              {generando ? 'Generando...' : 'Generar pagos del mes'}
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={abrirNuevo}
+            sx={{ fontWeight: 700, px: 3, py: 1.2 }}
+          >
+            Nuevo pago
+          </Button>
+        </Stack>
       </Box>
 
       {/* 2. Cards de Estadísticas */}
@@ -357,8 +407,9 @@ const Pagos: React.FC = () => {
           </TableHead>
           <TableBody>
             {pagosFiltrados.map((pago) => {
-              const st = estadoStyles[pago.estado] || estadoStyles.PAGADO;
-              const met = metodoStyles[pago.metodoPago] || { label: pago.metodoPago || 'Efectivo', color: '#475569', bg: '#f1f5f9', icon: <AttachMoneyIcon sx={{ fontSize: 14 }} /> };
+              const estadoMostrado = pago.estadoEfectivo || pago.estado;
+              const st = estadoStyles[estadoMostrado] || estadoStyles.PAGADO;
+              const met = pago.metodoPago ? metodoStyles[pago.metodoPago] : null;
 
               return (
                 <TableRow
@@ -386,17 +437,21 @@ const Pagos: React.FC = () => {
                   </TableCell>
 
                   <TableCell sx={{ px: 3, py: 2 }}>
-                    <Chip
-                      icon={met.icon}
-                      label={met.label}
-                      size="small"
-                      sx={{
-                        bgcolor: met.bg,
-                        color: met.color,
-                        fontWeight: 700,
-                        '& .MuiChip-icon': { color: met.color }
-                      }}
-                    />
+                    {met ? (
+                      <Chip
+                        icon={met.icon}
+                        label={met.label}
+                        size="small"
+                        sx={{
+                          bgcolor: met.bg,
+                          color: met.color,
+                          fontWeight: 700,
+                          '& .MuiChip-icon': { color: met.color }
+                        }}
+                      />
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">—</Typography>
+                    )}
                   </TableCell>
 
                   <TableCell sx={{ px: 3, py: 2 }}>
@@ -425,7 +480,7 @@ const Pagos: React.FC = () => {
                     <Tooltip title="Eliminar Pago">
                       <IconButton
                         size="small"
-                        onClick={() => eliminar(pago.id)}
+                        onClick={() => setPagoAEliminar(pago)}
                         sx={{ color: '#ef4444', '&:hover': { bgcolor: '#fee2e2' } }}
                       >
                         <DeleteIcon fontSize="small" />
@@ -588,6 +643,36 @@ const Pagos: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!pagoAEliminar}
+        titulo="Eliminar pago"
+        mensaje={
+          <>
+            ¿Seguro que querés eliminar el pago de <strong>{pagoAEliminar?.alumno?.nombre} {pagoAEliminar?.alumno?.apellido}</strong> correspondiente a <strong>{mesAnioDe(pagoAEliminar?.fechaVencimiento)}</strong>? Esta acción no se puede deshacer.
+          </>
+        }
+        textoConfirmar="Eliminar"
+        colorConfirmar="error"
+        onConfirm={confirmarEliminar}
+        onClose={() => setPagoAEliminar(null)}
+      />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.tipo}
+          variant="filled"
+          sx={{ fontWeight: 600 }}
+        >
+          {snackbar.mensaje}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
