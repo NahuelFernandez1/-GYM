@@ -54,12 +54,9 @@ public class PlanificacionController {
     @PutMapping("/{id}")
     public ResponseEntity<Planificacion> actualizar(
             @PathVariable Long id,
-            @RequestBody Planificacion planificacion) {
-        return planificacionService.obtenerPorId(id)
-                .map(p -> {
-                    planificacion.setId(id);
-                    return ResponseEntity.ok(planificacionService.guardar(planificacion));
-                })
+            @RequestBody Planificacion cambios) {
+        return planificacionService.actualizarDatosBasicos(id, cambios)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 

@@ -10,6 +10,7 @@ public interface PlanificacionService {
     List<Planificacion> obtenerPorAlumno(Long alumnoId);
     List<Planificacion> obtenerPorProfesor(Long usuarioId);
     Planificacion guardar(Planificacion planificacion);
+    Optional<Planificacion> actualizarDatosBasicos(Long id, Planificacion cambios);
     Planificacion copiar(Long planificacionId);
     void eliminar(Long id);
 }

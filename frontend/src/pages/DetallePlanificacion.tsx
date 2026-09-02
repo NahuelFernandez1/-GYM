@@ -4,13 +4,15 @@ import {
   Box, Typography, Button, IconButton, Paper, Tabs, Tab,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Chip, Table, TableBody, TableCell,
-  TableHead, TableRow, InputBase, CircularProgress, Stack, Divider, Tooltip
+  TableHead, TableRow, InputBase, CircularProgress, Stack, Divider, Tooltip,
+  Snackbar, Alert
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import SaveIcon from '@mui/icons-material/Save';
 import Autocomplete from '@mui/material/Autocomplete';
 import {
   planificacionService, semanaPlanService,
@@ -56,6 +58,14 @@ const DetallePlanificacion: React.FC = () => {
   // Fila nueva inline por día
   const [nuevaFilaPorDia, setNuevaFilaPorDia] = useState<Record<number, FilaDraftPorDia | null>>({});
 
+  const [guardando, setGuardando] = useState(false);
+  const [cambiosSinGuardar, setCambiosSinGuardar] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; mensaje: string; tipo: 'success' | 'error' | 'warning' }>({
+    open: false,
+    mensaje: '',
+    tipo: 'success',
+  });
+
   useEffect(() => {
     if (id) {
       planificacionService.getById(id).then(res => setPlan(res.data));
@@ -97,12 +107,40 @@ const DetallePlanificacion: React.FC = () => {
       numeroSemana: semanas.length + 1,
       notas: ''
     };
+    setCambiosSinGuardar(true);
     semanaPlanService.create(nuevaSemana).then(() => cargarSemanas());
+  };
+
+  const guardarPlan = () => {
+    if (!id || !plan) return;
+    setGuardando(true);
+    planificacionService.update(id, plan)
+      .then((res) => {
+        setPlan(res.data);
+        setCambiosSinGuardar(false);
+        setSnackbar({ open: true, mensaje: 'Plan guardado correctamente', tipo: 'success' });
+      })
+      .catch(() => {
+        setSnackbar({ open: true, mensaje: 'No se pudo guardar el plan', tipo: 'error' });
+      })
+      .finally(() => setGuardando(false));
+  };
+
+  const enviarPorMail = () => {
+    if (!id) return;
+    if (cambiosSinGuardar) {
+      setSnackbar({ open: true, mensaje: 'Debés guardar el plan antes de enviarlo por mail', tipo: 'warning' });
+      return;
+    }
+    planificacionService.enviar(id)
+      .then(() => alert('✅ Planificación enviada por mail en formato PDF'))
+      .catch(() => alert('❌ Error al enviar el mail'));
   };
 
   const eliminarSemana = (semanaId?: number) => {
     if (!semanaId) return;
     if (window.confirm('¿Eliminar esta semana y todo su contenido?')) {
+      setCambiosSinGuardar(true);
       semanaPlanService.delete(semanaId).then(() => {
         setSemanaActual(0);
         cargarSemanas();
@@ -112,6 +150,7 @@ const DetallePlanificacion: React.FC = () => {
 
   const copiarSemana = (semanaId?: number) => {
     if (!semanaId) return;
+    setCambiosSinGuardar(true);
     semanaPlanService.copiar(semanaId).then(() => cargarSemanas());
   };
 
@@ -122,6 +161,7 @@ const DetallePlanificacion: React.FC = () => {
 
   const guardarEditarSemana = () => {
     if (!semanaEditando || !semanaEditando.id) return;
+    setCambiosSinGuardar(true);
     semanaPlanService.update(semanaEditando.id, semanaEditando).then(() => {
       cargarSemanas();
       setDialogEditarSemana(false);
@@ -134,6 +174,7 @@ const DetallePlanificacion: React.FC = () => {
       semanaPlan: { id: semanaSeleccionada.id },
       diaSemana: diaForm,
     };
+    setCambiosSinGuardar(true);
     diaPlanService.create(nuevoDia).then(() => {
       if (semanaSeleccionada.id) cargarDias(semanaSeleccionada.id);
       setDialogDia(false);
@@ -145,6 +186,7 @@ const DetallePlanificacion: React.FC = () => {
   const eliminarDia = (diaId?: number, semanaId?: number) => {
     if (!diaId || !semanaId) return;
     if (window.confirm('¿Eliminar este día y sus ejercicios?')) {
+      setCambiosSinGuardar(true);
       diaPlanService.delete(diaId).then(() => cargarDias(semanaId));
     }
   };
@@ -162,6 +204,7 @@ const DetallePlanificacion: React.FC = () => {
       notas: fila.notas || '',
       orden: (ejerciciosPorDia[diaId]?.length || 0) + 1,
     };
+    setCambiosSinGuardar(true);
     ejercicioPlanificadoService.create(nuevoEjercicio).then(() => {
       cargarEjercicios(diaId);
       setNuevaFilaPorDia(prev => ({ ...prev, [diaId]: null }));
@@ -172,6 +215,7 @@ const DetallePlanificacion: React.FC = () => {
 
   const eliminarEjercicio = (ejercicioId?: number, diaId?: number) => {
     if (!ejercicioId || !diaId) return;
+    setCambiosSinGuardar(true);
     ejercicioPlanificadoService.delete(ejercicioId).then(() => cargarEjercicios(diaId));
   };
 
@@ -182,6 +226,7 @@ const DetallePlanificacion: React.FC = () => {
 
   const guardarEditarEjercicio = () => {
     if (!ejercicioEditando || !ejercicioEditando.id || !ejercicioEditando.diaPlan?.id) return;
+    setCambiosSinGuardar(true);
     ejercicioPlanificadoService.update(ejercicioEditando.id, ejercicioEditando).then(() => {
       if (ejercicioEditando.diaPlan?.id) cargarEjercicios(ejercicioEditando.diaPlan.id);
       setDialogEditarEjercicio(false);
@@ -240,13 +285,17 @@ const DetallePlanificacion: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
             <Button
               variant="outlined"
+              onClick={guardarPlan}
+              disabled={guardando}
+              startIcon={guardando ? <CircularProgress size={16} /> : <SaveIcon />}
+              sx={{ fontWeight: 700, px: 2.5 }}
+            >
+              Guardar
+            </Button>
+            <Button
+              variant="outlined"
               color="success"
-              onClick={() => {
-                if (!id) return;
-                planificacionService.enviar(id)
-                  .then(() => alert('✅ Planificación enviada por mail en formato PDF'))
-                  .catch(() => alert('❌ Error al enviar el mail'));
-              }}
+              onClick={enviarPorMail}
               sx={{ fontWeight: 700, px: 2.5 }}
             >
               Enviar por mail
@@ -273,12 +322,14 @@ const DetallePlanificacion: React.FC = () => {
             titulo="Bloque de Movilidad y Calentamiento"
             catalogoEjercicios={catalogoEjercicios}
             patronFiltro="MOVILIDAD"
+            onChange={() => setCambiosSinGuardar(true)}
           />
           <BloqueFijo
             planificacionId={id}
             tipoBloque="ACTIVACION"
             titulo="Bloque de Activación y Core"
             catalogoEjercicios={catalogoEjercicios}
+            onChange={() => setCambiosSinGuardar(true)}
           />
         </>
       )}
@@ -744,6 +795,22 @@ const DetallePlanificacion: React.FC = () => {
           <Button variant="contained" color="primary" onClick={guardarEditarEjercicio} sx={{ fontWeight: 700 }}>Guardar cambios</Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3500}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.tipo}
+          variant="filled"
+          sx={{ fontWeight: 600 }}
+        >
+          {snackbar.mensaje}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -42,6 +42,27 @@ public class PlanificacionServiceImpl implements PlanificacionService {
         return planificacionRepository.save(planificacion);
     }
 
+    /**
+     * Actualiza solo los campos simples del plan (nombre, alumno, fechas, estado).
+     * A proposito NO usa guardar(planificacion) con el objeto que manda el cliente:
+     * como "semanas"/"ejerciciosFijos" tienen @JsonIgnore, nunca viajan en el payload,
+     * y si se guardara ese objeto tal cual, Hibernate interpretaria "sin semanas" y
+     * las borraria en cascada (cascade=ALL + orphanRemoval=true). Por eso se carga la
+     * entidad persistida y se pisan solo los campos que el form de edicion expone.
+     */
+    @Override
+    @Transactional
+    public Optional<Planificacion> actualizarDatosBasicos(Long id, Planificacion cambios) {
+        return planificacionRepository.findById(id).map(existente -> {
+            if (cambios.getNombre() != null) existente.setNombre(cambios.getNombre());
+            if (cambios.getAlumno() != null) existente.setAlumno(cambios.getAlumno());
+            if (cambios.getFechaInicio() != null) existente.setFechaInicio(cambios.getFechaInicio());
+            if (cambios.getFechaFin() != null) existente.setFechaFin(cambios.getFechaFin());
+            if (cambios.getEstado() != null) existente.setEstado(cambios.getEstado());
+            return planificacionRepository.save(existente);
+        });
+    }
+
     @Override
     @Transactional
     public Planificacion copiar(Long planificacionId) {
