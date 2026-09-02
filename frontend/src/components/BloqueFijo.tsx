@@ -18,6 +18,7 @@ interface BloqueFijoProps {
   titulo: string;
   catalogoEjercicios: Ejercicio[];
   patronFiltro?: PatronMovimiento;
+  onChange?: () => void;
 }
 
 interface FilaDraft {
@@ -33,6 +34,7 @@ const BloqueFijo: React.FC<BloqueFijoProps> = ({
   titulo,
   catalogoEjercicios,
   patronFiltro,
+  onChange,
 }) => {
   const [items, setItems] = useState<EjercicioFijoPlan[]>([]);
   const [nuevaFila, setNuevaFila] = useState<FilaDraft | null>(null);
@@ -66,12 +68,16 @@ const BloqueFijo: React.FC<BloqueFijoProps> = ({
     ejercicioFijoPlanService.create(item).then(() => {
       cargar();
       setNuevaFila(null);
+      onChange?.();
     });
   };
 
   const eliminar = (id?: number) => {
     if (!id) return;
-    ejercicioFijoPlanService.delete(id).then(cargar);
+    ejercicioFijoPlanService.delete(id).then(() => {
+      cargar();
+      onChange?.();
+    });
   };
 
   const abrirEditar = (item: EjercicioFijoPlan) => {
@@ -91,6 +97,7 @@ const BloqueFijo: React.FC<BloqueFijoProps> = ({
       cargar();
       setEditandoId(null);
       setFilaEdicion(null);
+      onChange?.();
     });
   };
 
