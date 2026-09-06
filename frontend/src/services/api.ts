@@ -5,8 +5,10 @@ import {
   EjercicioPlanificado, EjercicioFijoPlan, DashboardKPIs, Usuario, AlumnoPorVencer
 } from '../types';
 
+// En build de producción hay que setear REACT_APP_API_URL (CRA lo incrusta
+// en el bundle en tiempo de build, no se puede cambiar después en runtime).
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8080/api',
 });
 
 const TOKEN_KEY = 'masgym_token';

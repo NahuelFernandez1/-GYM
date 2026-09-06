@@ -10,7 +10,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/dias")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class DiaPlanController {
 
     private final DiaPlanRepository diaPlanRepository;

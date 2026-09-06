@@ -16,7 +16,6 @@ import com.masgym.api.repository.PlanificacionRepository;
 @RestController
 @RequestMapping("/api/planificaciones")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class PlanificacionController {
 
     private final PlanificacionService planificacionService;

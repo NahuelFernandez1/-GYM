@@ -18,7 +18,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class DashboardController {
 
     private static final long DIAS_VENTANA_POR_VENCER = 5;

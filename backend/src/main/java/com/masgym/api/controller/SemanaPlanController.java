@@ -15,7 +15,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/semanas")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class SemanaPlanController {
 
     private final SemanaPlanRepository semanaPlanRepository;

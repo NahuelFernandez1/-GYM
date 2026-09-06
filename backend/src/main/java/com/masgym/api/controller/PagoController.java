@@ -14,7 +14,6 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/api/pagos")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class PagoController {
 
     private final PagoService pagoService;
