@@ -34,7 +34,9 @@ const Usuarios: React.FC = () => {
   useEffect(() => { cargarUsuarios(); }, []);
 
   const cargarUsuarios = () => {
-    usuarioService.getAll().then(res => setUsuarios(res.data));
+    usuarioService.getAll().then(res => setUsuarios(res.data)).catch(() => {
+      alert('❌ No se pudo cargar la lista de usuarios.');
+    });
   };
 
   const abrirNuevo = () => {
@@ -69,14 +71,23 @@ const Usuarios: React.FC = () => {
 
   const toggleActivo = (usuario: Usuario) => {
     if (!usuario.id) return;
-    usuarioService.update(usuario.id, { activo: !usuario.activo }).then(cargarUsuarios);
+    usuarioService.update(usuario.id, { activo: !usuario.activo }).then(cargarUsuarios).catch((err) => {
+      alert(err.response?.data?.error || 'No se pudo actualizar el estado del usuario.');
+    });
   };
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Gestión de Usuarios</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNuevo}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        gap: 2,
+        mb: 3
+      }}>
+        <Typography variant="h4" sx={{ fontSize: { xs: '1.75rem', sm: '2rem' } }}>Gestión de Usuarios</Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNuevo} sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}>
           Nuevo Usuario
         </Button>
       </Box>

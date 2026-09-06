@@ -156,15 +156,21 @@ const Pagos: React.FC = () => {
   useEffect(() => {
     cargarPagos();
     cargarResumen();
-    alumnoService.getAll().then(res => setAlumnos(res.data));
+    alumnoService.getAll().then(res => setAlumnos(res.data)).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudo cargar la lista de alumnos.', tipo: 'error' });
+    });
   }, []);
 
   const cargarPagos = () => {
-    pagoService.getAll().then(res => setPagos(res.data));
+    pagoService.getAll().then(res => setPagos(res.data)).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudieron cargar los pagos.', tipo: 'error' });
+    });
   };
 
   const cargarResumen = () => {
-    pagoService.getResumen().then(res => setResumen(res.data));
+    pagoService.getResumen().then(res => setResumen(res.data)).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudo cargar el resumen de recaudación.', tipo: 'error' });
+    });
   };
 
   const abrirNuevo = () => {
@@ -187,6 +193,12 @@ const Pagos: React.FC = () => {
       cargarPagos();
       cargarResumen();
       setDialogOpen(false);
+    }).catch((err) => {
+      setSnackbar({
+        open: true,
+        mensaje: err.response?.data?.error || 'No se pudo guardar el pago.',
+        tipo: 'error',
+      });
     });
   };
 
@@ -218,6 +230,12 @@ const Pagos: React.FC = () => {
     pagoService.delete(pagoAEliminar.id).then(() => {
       cargarPagos();
       cargarResumen();
+    }).catch((err) => {
+      setSnackbar({
+        open: true,
+        mensaje: err.response?.data?.error || 'No se pudo eliminar el pago.',
+        tipo: 'error',
+      });
     });
   };
 
@@ -287,7 +305,11 @@ const Pagos: React.FC = () => {
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1.5} sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, flexShrink: 0 }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+          sx={{ width: { xs: '100%', sm: 'auto' }, alignSelf: { xs: 'stretch', sm: 'center' }, flexShrink: 0 }}
+        >
           {puedeGenerarPagos && (
             <Button
               variant="outlined"

@@ -4,7 +4,7 @@ import {
   TableContainer, TableHead, TableRow, Paper, IconButton,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Chip, InputAdornment, Tooltip, Stack,
-  Divider
+  Divider, Snackbar, Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -45,14 +45,23 @@ const Planificaciones: React.FC = () => {
   const [planActual, setPlanActual] = useState<Planificacion>(planInicial);
   const [editando, setEditando] = useState(false);
   const [planAEliminar, setPlanAEliminar] = useState<Planificacion | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; mensaje: string; tipo: 'success' | 'error' }>({
+    open: false,
+    mensaje: '',
+    tipo: 'success',
+  });
 
   useEffect(() => {
     cargarPlanes();
-    alumnoService.getAll().then(res => setAlumnos(res.data));
+    alumnoService.getAll().then(res => setAlumnos(res.data)).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudo cargar la lista de alumnos.', tipo: 'error' });
+    });
   }, []);
 
   const cargarPlanes = () => {
-    planificacionService.getAll().then(res => setPlanes(res.data));
+    planificacionService.getAll().then(res => setPlanes(res.data)).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudieron cargar las planificaciones.', tipo: 'error' });
+    });
   };
 
   const abrirNuevo = () => {
@@ -74,6 +83,12 @@ const Planificaciones: React.FC = () => {
     operacion.then(() => {
       cargarPlanes();
       setDialogOpen(false);
+    }).catch((err) => {
+      setSnackbar({
+        open: true,
+        mensaje: err.response?.data?.error || 'No se pudo guardar la planificación.',
+        tipo: 'error',
+      });
     });
   };
 
@@ -82,12 +97,18 @@ const Planificaciones: React.FC = () => {
     planificacionService.copiar(id).then(() => {
       cargarPlanes();
       alert('✅ Planificación duplicada exitosamente');
-    });
+    }).catch(() => alert('❌ No se pudo duplicar la planificación.'));
   };
 
   const confirmarEliminar = () => {
     if (!planAEliminar?.id) return;
-    planificacionService.delete(planAEliminar.id).then(cargarPlanes);
+    planificacionService.delete(planAEliminar.id).then(cargarPlanes).catch((err) => {
+      setSnackbar({
+        open: true,
+        mensaje: err.response?.data?.error || 'No se pudo eliminar la planificación.',
+        tipo: 'error',
+      });
+    });
   };
 
   const planesFiltrados = planes.filter(p => {
@@ -452,6 +473,22 @@ const Planificaciones: React.FC = () => {
         onConfirm={confirmarEliminar}
         onClose={() => setPlanAEliminar(null)}
       />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.tipo}
+          variant="filled"
+          sx={{ fontWeight: 600 }}
+        >
+          {snackbar.mensaje}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

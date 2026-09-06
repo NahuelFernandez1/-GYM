@@ -72,7 +72,9 @@ const Alumnos: React.FC = () => {
   useEffect(() => { cargarAlumnos(); }, []);
 
   const cargarAlumnos = () => {
-    alumnoService.getAll().then(res => setAlumnos(res.data));
+    alumnoService.getAll().then(res => setAlumnos(res.data)).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudo cargar la lista de alumnos.', tipo: 'error' });
+    });
   };
 
   const abrirNuevo = () => {
@@ -103,6 +105,12 @@ const Alumnos: React.FC = () => {
     operacion.then(() => {
       cargarAlumnos();
       setDialogOpen(false);
+    }).catch((err) => {
+      setSnackbar({
+        open: true,
+        mensaje: err.response?.data?.error || 'No se pudo guardar el alumno.',
+        tipo: 'error',
+      });
     });
   };
 

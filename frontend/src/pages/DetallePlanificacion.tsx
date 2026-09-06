@@ -4,7 +4,7 @@ import {
   Box, Typography, Button, IconButton, Paper, Tabs, Tab,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Chip, Table, TableBody, TableCell,
-  TableHead, TableRow, InputBase, CircularProgress, Stack, Divider, Tooltip,
+  TableHead, TableRow, TableContainer, InputBase, CircularProgress, Stack, Divider, Tooltip,
   Snackbar, Alert
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -68,9 +68,13 @@ const DetallePlanificacion: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      planificacionService.getById(id).then(res => setPlan(res.data));
+      planificacionService.getById(id).then(res => setPlan(res.data)).catch(() => {
+        setSnackbar({ open: true, mensaje: 'No se pudo cargar la planificación.', tipo: 'error' });
+      });
       cargarSemanas();
-      ejercicioService.getAll().then(res => setCatalogoEjercicios(res.data));
+      ejercicioService.getAll().then(res => setCatalogoEjercicios(res.data)).catch(() => {
+        setSnackbar({ open: true, mensaje: 'No se pudo cargar el catálogo de ejercicios.', tipo: 'error' });
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -82,6 +86,8 @@ const DetallePlanificacion: React.FC = () => {
       res.data.forEach(s => {
         if (s.id) cargarDias(s.id);
       });
+    }).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudieron cargar las semanas.', tipo: 'error' });
     });
   };
 
@@ -91,12 +97,16 @@ const DetallePlanificacion: React.FC = () => {
       res.data.forEach(d => {
         if (d.id) cargarEjercicios(d.id);
       });
+    }).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudieron cargar los días.', tipo: 'error' });
     });
   };
 
   const cargarEjercicios = (diaId: number) => {
     ejercicioPlanificadoService.getByDia(diaId).then(res => {
       setEjerciciosPorDia(prev => ({ ...prev, [diaId]: res.data }));
+    }).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudieron cargar los ejercicios.', tipo: 'error' });
     });
   };
 
@@ -108,7 +118,9 @@ const DetallePlanificacion: React.FC = () => {
       notas: ''
     };
     setCambiosSinGuardar(true);
-    semanaPlanService.create(nuevaSemana).then(() => cargarSemanas());
+    semanaPlanService.create(nuevaSemana).then(() => cargarSemanas()).catch((err) => {
+      setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo agregar la semana.', tipo: 'error' });
+    });
   };
 
   const guardarPlan = () => {
@@ -144,6 +156,8 @@ const DetallePlanificacion: React.FC = () => {
       semanaPlanService.delete(semanaId).then(() => {
         setSemanaActual(0);
         cargarSemanas();
+      }).catch((err) => {
+        setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo eliminar la semana.', tipo: 'error' });
       });
     }
   };
@@ -151,7 +165,9 @@ const DetallePlanificacion: React.FC = () => {
   const copiarSemana = (semanaId?: number) => {
     if (!semanaId) return;
     setCambiosSinGuardar(true);
-    semanaPlanService.copiar(semanaId).then(() => cargarSemanas());
+    semanaPlanService.copiar(semanaId).then(() => cargarSemanas()).catch((err) => {
+      setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo duplicar la semana.', tipo: 'error' });
+    });
   };
 
   const abrirEditarSemana = (semana: SemanaPlan) => {
@@ -165,6 +181,8 @@ const DetallePlanificacion: React.FC = () => {
     semanaPlanService.update(semanaEditando.id, semanaEditando).then(() => {
       cargarSemanas();
       setDialogEditarSemana(false);
+    }).catch((err) => {
+      setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo editar la semana.', tipo: 'error' });
     });
   };
 
@@ -187,7 +205,9 @@ const DetallePlanificacion: React.FC = () => {
     if (!diaId || !semanaId) return;
     if (window.confirm('¿Eliminar este día y sus ejercicios?')) {
       setCambiosSinGuardar(true);
-      diaPlanService.delete(diaId).then(() => cargarDias(semanaId));
+      diaPlanService.delete(diaId).then(() => cargarDias(semanaId)).catch((err) => {
+        setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo eliminar el día.', tipo: 'error' });
+      });
     }
   };
 
@@ -216,7 +236,9 @@ const DetallePlanificacion: React.FC = () => {
   const eliminarEjercicio = (ejercicioId?: number, diaId?: number) => {
     if (!ejercicioId || !diaId) return;
     setCambiosSinGuardar(true);
-    ejercicioPlanificadoService.delete(ejercicioId).then(() => cargarEjercicios(diaId));
+    ejercicioPlanificadoService.delete(ejercicioId).then(() => cargarEjercicios(diaId)).catch((err) => {
+      setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo eliminar el ejercicio.', tipo: 'error' });
+    });
   };
 
   const abrirEditarEjercicio = (ep: EjercicioPlanificado) => {
@@ -267,7 +289,7 @@ const DetallePlanificacion: React.FC = () => {
             </IconButton>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                   {plan.nombre}
                 </Typography>
                 <Chip
@@ -368,7 +390,7 @@ const DetallePlanificacion: React.FC = () => {
             </Tabs>
 
             {semanaVisible && (
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', px: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', px: 1, flexWrap: 'wrap' }}>
                 <Tooltip title="Editar notas de semana">
                   <IconButton size="small" onClick={() => abrirEditarSemana(semanaVisible)} sx={{ color: '#0284c7', bgcolor: '#f1f5f9' }}>
                     <EditIcon sx={{ fontSize: 16 }} />
@@ -432,7 +454,8 @@ const DetallePlanificacion: React.FC = () => {
               </Box>
 
               {/* Tabla de ejercicios */}
-              <Table size="small">
+              <TableContainer sx={{ overflowX: 'auto' }}>
+              <Table size="small" sx={{ minWidth: 640 }}>
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#ffffff' }}>
                     <TableCell sx={{ width: 40, color: '#64748b', fontWeight: 700, fontSize: 11 }}>#</TableCell>
@@ -607,6 +630,7 @@ const DetallePlanificacion: React.FC = () => {
                   )}
                 </TableBody>
               </Table>
+              </TableContainer>
 
               {/* Botón agregar ejercicio */}
               {dia.id && (
@@ -753,7 +777,7 @@ const DetallePlanificacion: React.FC = () => {
               value={ejercicioEditando?.circuito || ''}
               onChange={(e) => setEjercicioEditando(prev => prev ? ({ ...prev, circuito: e.target.value }) : null)}
             />
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
               <TextField
                 fullWidth
                 size="small"

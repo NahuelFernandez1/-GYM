@@ -4,7 +4,7 @@ import {
   TableContainer, TableHead, TableRow, Paper, IconButton,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Chip, InputAdornment, Tooltip, Stack,
-  Divider, TableSortLabel
+  Divider, TableSortLabel, Snackbar, Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -43,11 +43,18 @@ const Ejercicios: React.FC = () => {
   const [ordenAsc, setOrdenAsc] = useState(true);
   const [ordenCampo, setOrdenCampo] = useState<keyof Ejercicio>('nombre');
   const [ejercicioAEliminar, setEjercicioAEliminar] = useState<Ejercicio | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; mensaje: string; tipo: 'success' | 'error' }>({
+    open: false,
+    mensaje: '',
+    tipo: 'success',
+  });
 
   useEffect(() => { cargarEjercicios(); }, []);
 
   const cargarEjercicios = () => {
-    ejercicioService.getAll().then(res => setEjercicios(res.data));
+    ejercicioService.getAll().then(res => setEjercicios(res.data)).catch(() => {
+      setSnackbar({ open: true, mensaje: 'No se pudo cargar el catálogo de ejercicios.', tipo: 'error' });
+    });
   };
 
   const abrirNuevo = () => {
@@ -69,12 +76,24 @@ const Ejercicios: React.FC = () => {
     operacion.then(() => {
       cargarEjercicios();
       setDialogOpen(false);
+    }).catch((err) => {
+      setSnackbar({
+        open: true,
+        mensaje: err.response?.data?.error || 'No se pudo guardar el ejercicio.',
+        tipo: 'error',
+      });
     });
   };
 
   const confirmarEliminar = () => {
     if (!ejercicioAEliminar?.id) return;
-    ejercicioService.delete(ejercicioAEliminar.id).then(cargarEjercicios);
+    ejercicioService.delete(ejercicioAEliminar.id).then(cargarEjercicios).catch((err) => {
+      setSnackbar({
+        open: true,
+        mensaje: err.response?.data?.error || 'No se pudo eliminar el ejercicio.',
+        tipo: 'error',
+      });
+    });
   };
 
   const handleSort = (campo: keyof Ejercicio) => {
@@ -452,6 +471,22 @@ const Ejercicios: React.FC = () => {
         onConfirm={confirmarEliminar}
         onClose={() => setEjercicioAEliminar(null)}
       />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.tipo}
+          variant="filled"
+          sx={{ fontWeight: 600 }}
+        >
+          {snackbar.mensaje}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

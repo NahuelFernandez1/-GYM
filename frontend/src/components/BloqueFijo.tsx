@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell,
-  TableHead, TableRow, IconButton, Button, TextField, InputBase,
+  TableHead, TableRow, TableContainer, IconButton, Button, TextField, InputBase,
   Chip, Tooltip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -49,6 +49,8 @@ const BloqueFijo: React.FC<BloqueFijoProps> = ({
   const cargar = () => {
     ejercicioFijoPlanService.getByPlanificacion(planificacionId).then(res => {
       setItems(res.data.filter(i => i.tipoBloque === tipoBloque));
+    }).catch(() => {
+      alert('❌ No se pudieron cargar los ejercicios del bloque.');
     });
   };
 
@@ -69,6 +71,8 @@ const BloqueFijo: React.FC<BloqueFijoProps> = ({
       cargar();
       setNuevaFila(null);
       onChange?.();
+    }).catch((err) => {
+      alert(err.response?.data?.error || 'No se pudo agregar el ejercicio al bloque.');
     });
   };
 
@@ -77,6 +81,8 @@ const BloqueFijo: React.FC<BloqueFijoProps> = ({
     ejercicioFijoPlanService.delete(id).then(() => {
       cargar();
       onChange?.();
+    }).catch((err) => {
+      alert(err.response?.data?.error || 'No se pudo eliminar el ejercicio del bloque.');
     });
   };
 
@@ -98,6 +104,8 @@ const BloqueFijo: React.FC<BloqueFijoProps> = ({
       setEditandoId(null);
       setFilaEdicion(null);
       onChange?.();
+    }).catch((err) => {
+      alert(err.response?.data?.error || 'No se pudo editar el ejercicio del bloque.');
     });
   };
 
@@ -130,7 +138,8 @@ const BloqueFijo: React.FC<BloqueFijoProps> = ({
         />
       </Box>
 
-      <Table size="small">
+      <TableContainer sx={{ overflowX: 'auto' }}>
+      <Table size="small" sx={{ minWidth: 480 }}>
         <TableHead>
           <TableRow sx={{ bgcolor: '#ffffff' }}>
             <TableCell sx={{ width: 40, color: '#64748b', fontWeight: 700, fontSize: 11 }}>#</TableCell>
@@ -234,6 +243,7 @@ const BloqueFijo: React.FC<BloqueFijoProps> = ({
           )}
         </TableBody>
       </Table>
+      </TableContainer>
 
       <Box
         onClick={() => setNuevaFila({})}

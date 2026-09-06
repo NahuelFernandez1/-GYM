@@ -219,7 +219,7 @@ const Dashboard: React.FC = () => {
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 1.5 }}>
             <Button
               variant="contained"
               color="primary"
