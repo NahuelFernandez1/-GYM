@@ -1,5 +1,9 @@
 package com.masgym.api.exception;
 
+import com.masgym.api.service.ErrorAlertService;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,8 +15,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final ErrorAlertService errorAlertService;
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
@@ -40,5 +48,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "No tenés permiso para realizar esta acción."));
+    }
+
+    // Cualquier error no manejado por los handlers de arriba: se loguea, se le
+    // avisa al admin por mail, y se le devuelve al cliente un 500 generico
+    // (sin exponer detalles internos como stack traces).
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleGenerico(Exception ex, HttpServletRequest request) {
+        log.error("Error no manejado en {}", request.getRequestURI(), ex);
+        errorAlertService.notificarErrorBackend(request.getRequestURI(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Ocurrió un error inesperado. Ya le avisamos al equipo técnico."));
     }
 }
