@@ -89,7 +89,13 @@ const Alumnos: React.FC = () => {
     setDialogOpen(true);
   };
 
+  const emailInvalido = !!alumnoActual.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alumnoActual.email.trim());
+
   const guardar = () => {
+    if (emailInvalido) {
+      setSnackbar({ open: true, mensaje: 'El email no tiene un formato válido.', tipo: 'error' });
+      return;
+    }
     const partes = alumnoActual.nombreCompleto?.trim().split(' ') || [];
     const alumnoAGuardar: Partial<Alumno> = alumnoActual.nombreCompleto
       ? {
@@ -476,6 +482,8 @@ const Alumnos: React.FC = () => {
                   placeholder="alumno@gmail.com"
                   value={alumnoActual.email || ''}
                   onChange={(e) => setAlumnoActual({ ...alumnoActual, email: e.target.value })}
+                  error={emailInvalido}
+                  helperText={emailInvalido ? 'Formato de email inválido' : ''}
                 />
               </Box>
               <Box sx={{ flex: 1 }}>

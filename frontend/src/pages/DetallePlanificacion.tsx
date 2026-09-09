@@ -145,8 +145,8 @@ const DetallePlanificacion: React.FC = () => {
       return;
     }
     planificacionService.enviar(id)
-      .then(() => alert('✅ Planificación enviada por mail en formato PDF'))
-      .catch(() => alert('❌ Error al enviar el mail'));
+      .then(() => setSnackbar({ open: true, mensaje: 'Planificación enviada por mail en formato PDF', tipo: 'success' }))
+      .catch((err) => setSnackbar({ open: true, mensaje: err.response?.data || 'No se pudo enviar el mail.', tipo: 'error' }));
   };
 
   const eliminarSemana = (semanaId?: number) => {
@@ -521,6 +521,7 @@ const DetallePlanificacion: React.FC = () => {
                         <InputBase
                           size="small"
                           placeholder="ej: CF1"
+                          value={nuevaFilaPorDia[dia.id]?.circuito || ''}
                           sx={{ width: 70, fontSize: 13, borderBottom: '1px solid #cbd5e1' }}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -559,6 +560,7 @@ const DetallePlanificacion: React.FC = () => {
                         <InputBase
                           size="small"
                           placeholder="Series"
+                          value={nuevaFilaPorDia[dia.id]?.series ?? ''}
                           sx={{ width: 60, fontSize: 13, borderBottom: '1px solid #cbd5e1' }}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -635,7 +637,15 @@ const DetallePlanificacion: React.FC = () => {
               {/* Botón agregar ejercicio */}
               {dia.id && (
                 <Box
-                  onClick={() => setNuevaFilaPorDia(prev => ({ ...prev, [dia.id as number]: {} }))}
+                  onClick={() => {
+                    const idDia = dia.id as number;
+                    const ejerciciosDelDia = ejerciciosPorDia[idDia] || [];
+                    const ultimo = ejerciciosDelDia[ejerciciosDelDia.length - 1];
+                    setNuevaFilaPorDia(prev => ({
+                      ...prev,
+                      [idDia]: { circuito: ultimo?.circuito, series: ultimo?.series },
+                    }));
+                  }}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',

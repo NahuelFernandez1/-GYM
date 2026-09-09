@@ -87,16 +87,22 @@ public class PlanificacionController {
 
     @PostMapping("/{id}/enviar")
     public ResponseEntity<String> enviar(@PathVariable Long id) {
+        Planificacion plan = planificacionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Planificacion no encontrada"));
+
+        String email = plan.getAlumno() != null ? plan.getAlumno().getEmail() : null;
+        if (email == null || email.isBlank() || !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            return ResponseEntity.badRequest().body("El email del alumno no es válido. Revisalo en su ficha antes de enviar.");
+        }
+
         try {
-            Planificacion plan = planificacionRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Planificacion no encontrada"));
             emailService.enviarPlanificacion(plan);
             plan.setEstado("ENVIADA");
             plan.setEnviadoAt(java.time.LocalDateTime.now());
             planificacionRepository.save(plan);
             return ResponseEntity.ok("Mail enviado correctamente");
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error al enviar: " + e.getMessage());
+            return ResponseEntity.status(500).body("No se pudo enviar el mail. Intentá de nuevo en unos minutos.");
         }
     }
 }

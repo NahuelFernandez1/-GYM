@@ -1,13 +1,11 @@
 package com.masgym.api.service;
 
 import com.masgym.api.model.*;
-import com.masgym.api.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import jakarta.mail.internet.MimeMessage;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -15,9 +13,6 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final PdfService pdfService;
-    private final SemanaPlanRepository semanaPlanRepository;
-    private final DiaPlanRepository diaPlanRepository;
-    private final EjercicioPlanificadoRepository ejercicioPlanificadoRepository;
 
     public void enviarPlanificacion(Planificacion planificacion) throws Exception {
         String html = generarHtml(planificacion);
@@ -36,95 +31,86 @@ public class EmailService {
                 new org.springframework.core.io.ByteArrayResource(pdf)
         );
 
+        // Logo embebido inline, referenciado en el HTML como cid:logoEmail.
+        helper.addInline("logoEmail", new org.springframework.core.io.ClassPathResource("images/logo-masgym.png"));
+
         mailSender.send(message);
     }
 
     private String generarHtml(Planificacion plan) {
         Alumno alumno = plan.getAlumno();
-        StringBuilder html = new StringBuilder();
+        String fechaFin = plan.getFechaFin() != null ? plan.getFechaFin().toString() : "sin fecha de fin";
 
-        html.append("""
-            <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #ddd;">
-            <div style="background-color: #1b5e20; padding: 12px 20px;">
-                <span style="color: white; font-size: 22px; font-weight: bold;">MASGYM</span>
-                <span style="color: #f9a825; font-size: 13px; margin-left: 10px;">Plan de entrenamiento</span>
-            </div>
-            <div style="padding: 16px 20px; background: #f9f9f9; border-bottom: 2px solid #1b5e20;">
-                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #1b5e20;">
-            """);
-        html.append(alumno.getNombre()).append(" ").append(alumno.getApellido());
-        html.append("""
-                </p>
-                <p style="margin: 4px 0; font-size: 13px; color: #555;">
-                    <strong>Vigencia:</strong> 
-            """);
-        html.append(plan.getFechaInicio()).append(" — ").append(plan.getFechaFin() != null ? plan.getFechaFin() : "Sin fecha fin");
-        html.append("""
-                </p>
-            </div>
-            <div style="padding: 20px;">
-                <p style="color: #555;">Hola <strong>
-            """);
-        html.append(alumno.getNombre());
-        html.append("""
-                </strong>, adjunto encontrás tu planificación de entrenamiento en PDF.</p>
-                <p style="color: #555;">También podés verla directamente en este mail:</p>
-            """);
+        String plantilla = """
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+            <meta charset="UTF-8">
+            <title>Plan de entrenamiento - +GYM</title>
+            </head>
+            <body style="margin:0; padding:0; background-color:#fafafa; font-family: 'Segoe UI', Arial, sans-serif;">
 
-        List<SemanaPlan> semanas = semanaPlanRepository
-                .findByPlanificacionIdOrderByNumeroSemanaAsc(plan.getId());
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafafa; padding:40px 0;">
+              <tr>
+                <td align="center">
 
-        for (SemanaPlan semana : semanas) {
-            html.append("<h3 style='color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 5px;'>Semana ")
-                    .append(semana.getNumeroSemana()).append("</h3>");
+                  <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;">
 
-            List<DiaPlan> dias = diaPlanRepository.findBySemanaPlanId(semana.getId());
-            int numeroDia = 1;
+                    <tr>
+                      <td align="center" style="padding-bottom:28px;">
+                        <img src="{{LOGO_URL}}" alt="+GYM" width="90" style="display:block;">
+                      </td>
+                    </tr>
 
-            for (DiaPlan dia : dias) {
-                html.append("<div style='background: white; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #2e7d32;'>")
-                        .append("<h4 style='color: #1b5e20; margin: 0 0 10px 0;'>")
-                        .append(numeroDia).append(" — ").append(dia.getDiaSemana())
-                        .append("</h4>");
+                    <tr>
+                      <td style="border-top:3px solid #facc15; padding-bottom:24px;"></td>
+                    </tr>
 
-                List<EjercicioPlanificado> ejercicios = ejercicioPlanificadoRepository
-                        .findByDiaPlanIdOrderByOrdenAsc(dia.getId());
+                    <tr>
+                      <td>
+                        <p style="margin:0 0 4px 0; color:#9ca3af; font-size:12px; text-transform:uppercase; letter-spacing:1px;">
+                          Plan de entrenamiento
+                        </p>
+                        <h1 style="margin:0 0 20px 0; color:#111827; font-size:20px; font-weight:600;">
+                          Hola {{NOMBRE_ALUMNO}}
+                        </h1>
 
-                html.append("<table style='width: 100%; border-collapse: collapse; font-size: 13px;'>")
-                        .append("<tr style='background: #e8f5e9;'>")
-                        .append("<th style='padding: 8px; text-align: left; border: 1px solid #ddd;'>#</th>")
-                        .append("<th style='padding: 8px; text-align: left; border: 1px solid #ddd;'>Ejercicio</th>")
-                        .append("<th style='padding: 8px; text-align: center; border: 1px solid #ddd;'>Series</th>")
-                        .append("<th style='padding: 8px; text-align: center; border: 1px solid #ddd;'>Reps</th>")
-                        .append("<th style='padding: 8px; text-align: center; border: 1px solid #ddd;'>Peso</th>")
-                        .append("<th style='padding: 8px; text-align: left; border: 1px solid #ddd;'>Notas</th>")
-                        .append("</tr>");
+                        <p style="margin:0 0 16px 0; color:#374151; font-size:15px; line-height:1.6;">
+                          Te compartimos tu nueva planificación, vigente del <strong>{{FECHA_INICIO}}</strong> al <strong>{{FECHA_FIN}}</strong>.
+                        </p>
 
-                for (EjercicioPlanificado ep : ejercicios) {
-                    html.append("<tr style='border: 1px solid #ddd;'>")
-                            .append("<td style='padding: 8px; border: 1px solid #ddd; text-align: center; color: #888;'>").append(ep.getOrden()).append("</td>")
-                            .append("<td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>").append(ep.getEjercicio().getNombre()).append("</td>")
-                            .append("<td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>").append(ep.getSeries()).append("</td>")
-                            .append("<td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>").append(ep.getRepeticiones()).append("</td>")
-                            .append("<td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>").append(ep.getPesoKg() != null ? ep.getPesoKg() + " kg" : "—").append("</td>")
-                            .append("<td style='padding: 8px; border: 1px solid #ddd; color: #555; font-size: 12px;'>").append(ep.getNotas() != null ? ep.getNotas() : "").append("</td>")
-                            .append("</tr>");
-                }
+                        <p style="margin:0 0 28px 0; color:#374151; font-size:15px; line-height:1.6;">
+                          El detalle completo — semanas, días y ejercicios — lo encontrás en el PDF adjunto a este mail.
+                        </p>
 
-                html.append("</table></div>");
-                numeroDia++;
-            }
-        }
+                        <p style="margin:0; color:#6b7280; font-size:14px; line-height:1.6;">
+                          Cualquier duda, consultá con tu profesor.
+                        </p>
+                      </td>
+                    </tr>
 
-        html.append("""
-            </div>
-            <div style="background-color: #1b5e20; padding: 16px; text-align: center;">
-                <p style="color: white; margin: 0; font-size: 14px;">💪 MASGYM — Seguí entrenando fuerte</p>
-                <p style="color: #f9a825; margin: 4px 0; font-size: 12px;">Este mail fue generado automáticamente</p>
-            </div>
-            </div>
-            """);
+                    <tr>
+                      <td style="padding-top:40px;">
+                        <p style="margin:0; color:#9ca3af; font-size:12px;">
+                          +GYM — este mail fue generado automáticamente.
+                        </p>
+                      </td>
+                    </tr>
 
-        return html.toString();
+                  </table>
+
+                </td>
+              </tr>
+            </table>
+
+            </body>
+            </html>
+            """;
+
+        return plantilla
+                .replace("{{LOGO_URL}}", "cid:logoEmail")
+                .replace("{{NOMBRE_ALUMNO}}", alumno.getNombre())
+                .replace("{{FECHA_INICIO}}", String.valueOf(plan.getFechaInicio()))
+                .replace("{{FECHA_FIN}}", fechaFin);
     }
 }
