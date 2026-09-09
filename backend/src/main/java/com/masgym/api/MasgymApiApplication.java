@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import java.net.URI;
 import java.util.TimeZone;
 
 @SpringBootApplication
@@ -16,7 +17,26 @@ public class MasgymApiApplication {
 		// nube (tipicamente UTC) eso hace que un plan/pago se marque VENCIDO hasta
 		// 3 horas antes de que realmente venza segun el horario de Argentina.
 		TimeZone.setDefault(TimeZone.getTimeZone("America/Argentina/Buenos_Aires"));
+		aplicarDatabaseUrlDeRender();
 		SpringApplication.run(MasgymApiApplication.class, args);
+	}
+
+	// Render (y la mayoria de los hosts) exponen la base como una unica
+	// DATABASE_URL en formato "postgres://usuario:password@host:puerto/db",
+	// pero el driver JDBC necesita "jdbc:postgresql://host:puerto/db" con el
+	// usuario y la password aparte. La parseamos aca en vez de pedirle a
+	// Render que arme piezas sueltas (host/puerto/etc), que no son
+	// propiedades validas para referenciar una base en el render.yaml.
+	private static void aplicarDatabaseUrlDeRender() {
+		String databaseUrl = System.getenv("DATABASE_URL");
+		if (databaseUrl == null || databaseUrl.isBlank()) {
+			return;
+		}
+		URI uri = URI.create(databaseUrl);
+		String[] credenciales = uri.getUserInfo().split(":", 2);
+		System.setProperty("DB_URL", "jdbc:postgresql://" + uri.getHost() + ":" + uri.getPort() + uri.getPath() + "?sslmode=require");
+		System.setProperty("DB_USERNAME", credenciales[0]);
+		System.setProperty("DB_PASSWORD", credenciales[1]);
 	}
 
 }
