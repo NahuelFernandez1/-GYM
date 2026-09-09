@@ -13,12 +13,26 @@ services:
     dockerContext: ./backend
     healthCheckPath: /
     envVars:
-      - key: DB_URL
-        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: masgym-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: masgym-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: masgym-db
+          property: database
       - key: DB_USERNAME
-        sync: false
+        fromDatabase:
+          name: masgym-db
+          property: user
       - key: DB_PASSWORD
-        sync: false
+        fromDatabase:
+          name: masgym-db
+          property: password
       - key: JWT_SECRET
         sync: false
       - key: MAIL_USERNAME
