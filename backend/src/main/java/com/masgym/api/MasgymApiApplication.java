@@ -34,7 +34,9 @@ public class MasgymApiApplication {
 		}
 		URI uri = URI.create(databaseUrl);
 		String[] credenciales = uri.getUserInfo().split(":", 2);
-		System.setProperty("DB_URL", "jdbc:postgresql://" + uri.getHost() + ":" + uri.getPort() + uri.getPath() + "?sslmode=require");
+		// Render no siempre incluye el puerto en la DATABASE_URL interna (asume 5432).
+		int puerto = uri.getPort() == -1 ? 5432 : uri.getPort();
+		System.setProperty("DB_URL", "jdbc:postgresql://" + uri.getHost() + ":" + puerto + uri.getPath() + "?sslmode=require");
 		System.setProperty("DB_USERNAME", credenciales[0]);
 		System.setProperty("DB_PASSWORD", credenciales[1]);
 	}
