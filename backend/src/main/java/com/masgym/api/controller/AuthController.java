@@ -6,15 +6,15 @@ import com.masgym.api.model.Usuario;
 import com.masgym.api.repository.UsuarioRepository;
 import com.masgym.api.security.JwtService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
-@Slf4j
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -24,26 +24,27 @@ public class AuthController {
     private final UsuarioRepository usuarioRepository;
     private final JwtService jwtService;
 
+    // Devuelve el 401 directamente (no lo tira como excepcion) porque si lo
+    // tiramos, Spring Security lo intercepta con el authenticationEntryPoint
+    // generico ("No autenticado...") y pisa este mensaje especifico.
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
-        // DEBUG TEMPORAL: sacar despues de diagnosticar el login que falla desde el celu.
-        log.info("LOGIN intento: email=[{}] (len={}) password len={}",
-                request.getEmail(), request.getEmail() == null ? -1 : request.getEmail().length(),
-                request.getPassword() == null ? -1 : request.getPassword().length());
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
         } catch (AuthenticationException e) {
-            log.info("LOGIN fallo: {}", e.getMessage());
-            throw new BadCredentialsException("Email o contraseña incorrectos");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Email o contraseña incorrectos"));
         }
 
-        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadCredentialsException("Email o contraseña incorrectos"));
+        Usuario usuario = usuarioRepository.findByEmail(request.getEmail()).orElse(null);
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Email o contraseña incorrectos"));
+        }
 
         String token = jwtService.generarToken(usuario.getEmail(), usuario.getRol().name());
-
         return ResponseEntity.ok(new LoginResponse(token, usuario.getNombre(), usuario.getEmail(), usuario.getRol()));
     }
 }
