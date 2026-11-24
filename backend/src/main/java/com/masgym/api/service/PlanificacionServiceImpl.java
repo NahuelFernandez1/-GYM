@@ -48,25 +48,64 @@ public class PlanificacionServiceImpl implements PlanificacionService {
     }
 
     /**
-     * Actualiza solo los campos simples del plan (nombre, alumno, fechas, estado).
+     * Actualiza solo los campos simples del plan (nombre, alumno, fechas, estado y
+     * cantidad de semanas).
      * A proposito NO usa guardar(planificacion) con el objeto que manda el cliente:
      * como "dias"/"ejerciciosFijos" tienen @JsonIgnore, nunca viajan en el payload,
      * y si se guardara ese objeto tal cual, Hibernate interpretaria "sin dias" y
      * los borraria en cascada (cascade=ALL + orphanRemoval=true). Por eso se carga la
      * entidad persistida y se pisan solo los campos que el form de edicion expone.
-     * La cantidad de semanas se cambia con agregarSemana/eliminarSemana.
      */
     @Override
     @Transactional
     public Optional<Planificacion> actualizarDatosBasicos(Long id, Planificacion cambios) {
-        return planificacionRepository.findById(id).map(existente -> {
-            if (cambios.getNombre() != null) existente.setNombre(cambios.getNombre());
-            if (cambios.getAlumno() != null) existente.setAlumno(cambios.getAlumno());
-            if (cambios.getFechaInicio() != null) existente.setFechaInicio(cambios.getFechaInicio());
-            if (cambios.getFechaFin() != null) existente.setFechaFin(cambios.getFechaFin());
-            if (cambios.getEstado() != null) existente.setEstado(cambios.getEstado());
-            return planificacionRepository.save(existente);
-        });
+        if (planificacionRepository.findById(id).isEmpty()) return Optional.empty();
+        if (cambios.getCantidadSemanas() != null) cambiarCantidadSemanas(id, cambios.getCantidadSemanas());
+
+        // Se vuelve a cargar: cambiarCantidadSemanas puede limpiar el contexto de JPA.
+        Planificacion existente = buscar(id);
+        if (cambios.getNombre() != null) existente.setNombre(cambios.getNombre());
+        if (cambios.getAlumno() != null) existente.setAlumno(cambios.getAlumno());
+        if (cambios.getFechaInicio() != null) existente.setFechaInicio(cambios.getFechaInicio());
+        if (cambios.getFechaFin() != null) existente.setFechaFin(cambios.getFechaFin());
+        if (cambios.getEstado() != null) existente.setEstado(cambios.getEstado());
+        return Optional.of(planificacionRepository.save(existente));
+    }
+
+    /**
+     * Si sube, cada ejercicio recibe las semanas nuevas copiando la ultima que tenia.
+     * Si baja, se borran las prescripciones de las semanas que sobran (el front pide
+     * confirmacion antes).
+     */
+    private void cambiarCantidadSemanas(Long planId, int nueva) {
+        if (nueva < 1 || nueva > MAX_SEMANAS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La cantidad de semanas tiene que ser de 1 a " + MAX_SEMANAS + ".");
+        }
+        Planificacion plan = buscar(planId);
+        int actual = plan.getCantidadSemanas();
+        if (nueva == actual) return;
+
+        if (nueva > actual) {
+            for (DiaPlan dia : plan.getDias()) {
+                for (EjercicioPlanificado ep : dia.getEjercicios()) {
+                    PrescripcionSemanal ultima = ep.getPrescripciones().stream()
+                            .filter(p -> p.getNumeroSemana() == actual)
+                            .findFirst()
+                            .orElse(null);
+                    for (int s = actual + 1; s <= nueva; s++) {
+                        ep.getPrescripciones().add(PrescripcionSemanal.copiaDe(ultima, ep, s));
+                    }
+                }
+            }
+            plan.setCantidadSemanas(nueva);
+            planificacionRepository.save(plan);
+        } else {
+            prescripcionSemanalRepository.borrarSemanasMayoresA(planId, nueva);
+            Planificacion recargado = buscar(planId);
+            recargado.setCantidadSemanas(nueva);
+            planificacionRepository.save(recargado);
+        }
     }
 
     @Override
@@ -107,53 +146,6 @@ public class PlanificacionServiceImpl implements PlanificacionService {
             }
         }
         return copiaPlan;
-    }
-
-    /** Agrega una semana al final, arrancando con los mismos valores que la ultima. */
-    @Override
-    @Transactional
-    public Planificacion agregarSemana(Long planificacionId) {
-        Planificacion plan = buscar(planificacionId);
-        int actual = plan.getCantidadSemanas();
-        if (actual >= MAX_SEMANAS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "El plan ya tiene el máximo de " + MAX_SEMANAS + " semanas.");
-        }
-        int nueva = actual + 1;
-        for (DiaPlan dia : plan.getDias()) {
-            for (EjercicioPlanificado ep : dia.getEjercicios()) {
-                PrescripcionSemanal ultima = ep.getPrescripciones().stream()
-                        .filter(p -> p.getNumeroSemana() == actual)
-                        .findFirst()
-                        .orElse(null);
-                ep.getPrescripciones().add(PrescripcionSemanal.copiaDe(ultima, ep, nueva));
-            }
-        }
-        plan.setCantidadSemanas(nueva);
-        return planificacionRepository.save(plan);
-    }
-
-    /** Saca una semana y corre las siguientes un lugar (si se borra la 2, la 3 pasa a ser la 2). */
-    @Override
-    @Transactional
-    public Planificacion eliminarSemana(Long planificacionId, int numeroSemana) {
-        int actual = buscar(planificacionId).getCantidadSemanas();
-        if (actual <= 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "El plan tiene que tener al menos una semana.");
-        }
-        if (numeroSemana < 1 || numeroSemana > actual) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "La semana " + numeroSemana + " no existe en este plan.");
-        }
-        prescripcionSemanalRepository.borrarSemana(planificacionId, numeroSemana);
-        prescripcionSemanalRepository.correrSemanasANegativo(planificacionId, numeroSemana);
-        prescripcionSemanalRepository.volverSemanasAPositivo(planificacionId);
-
-        // Las consultas de arriba limpian el contexto de JPA: se vuelve a cargar el plan.
-        Planificacion plan = buscar(planificacionId);
-        plan.setCantidadSemanas(actual - 1);
-        return planificacionRepository.save(plan);
     }
 
     private Planificacion buscar(Long id) {

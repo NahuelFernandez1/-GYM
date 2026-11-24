@@ -4,73 +4,109 @@ import {
   Box, Typography, Button, IconButton, Paper, Tabs, Tab,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, MenuItem, Chip, Table, TableBody, TableCell,
-  TableHead, TableRow, TableContainer, InputBase, CircularProgress, Stack, Divider, Tooltip,
-  Snackbar, Alert
+  TableHead, TableRow, TableContainer, CircularProgress, Divider, Tooltip,
+  Snackbar, Alert, useMediaQuery, useTheme
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
-import Autocomplete from '@mui/material/Autocomplete';
+import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import {
   planificacionService, diaPlanService, ejercicioPlanificadoService, ejercicioService
 } from '../services/api';
 import BloqueFijo from '../components/BloqueFijo';
 import {
-  Planificacion, DiaPlan, EjercicioPlanificado, Ejercicio, EstadoPlanificacion, PrescripcionSemanal
+  Planificacion, DiaPlan, EjercicioPlanificado, Ejercicio, EstadoPlanificacion,
+  PrescripcionSemanal, PatronMovimiento
 } from '../types';
 
 const DIAS = ['Día 1', 'Día 2', 'Día 3', 'Día 4', 'Día 5', 'Día 6', 'Día 7'];
-const MAX_SEMANAS = 5;
+const CIRCUITOS = ['CF1', 'CF2', 'CF3', 'CF4', 'CF5', 'CF6', 'CF'];
+const PATRONES: PatronMovimiento[] = ['EMPUJE', 'TRACCION', 'CADERA', 'RODILLA', 'CORE', 'MOVILIDAD'];
 
-// Valores de una semana tal como se tipean en la pantalla.
-interface ValoresSemana {
-  series?: string | number | null;
-  reps?: string | null;
-  rir?: string | null;
-  notasPeso?: string | null;
+// Una fila de la grilla "Progresión por semana", tal como se tipea.
+interface FilaSemana {
+  series: string;
+  reps: string;
+  rir: string;
+  notasPeso: string;
 }
 
-interface FilaDraftPorDia extends ValoresSemana {
-  ejercicioId?: number;
-  circuito?: string | null;
+// Opcion del buscador: un ejercicio del catalogo o "+ Crear ejercicio «texto»".
+type OpcionEjercicio = Ejercicio & { crear?: boolean };
+
+interface Modal {
+  ep: EjercicioPlanificado | null; // null = agregar
+  diaId: number;
+  semanaFoco: number | null;
+  ejercicio: OpcionEjercicio | null;
+  patronNuevo: PatronMovimiento | '';
+  circuito: string;
+  filas: FilaSemana[];
+  error: string;
 }
 
-const prescripcionDe = (ep: EjercicioPlanificado, semana: number): PrescripcionSemanal | undefined =>
+const filaVacia = (): FilaSemana => ({ series: '', reps: '', rir: '', notasPeso: '' });
+
+const texto = (v: unknown) => (v === null || v === undefined ? '' : String(v).trim());
+
+const sinTildes = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+const filtroBase = createFilterOptions<OpcionEjercicio>({ stringify: (o) => sinTildes(o.nombre) });
+
+const prescripcion = (ep: EjercicioPlanificado, semana: number): PrescripcionSemanal | undefined =>
   ep.prescripciones?.find(p => p.numeroSemana === semana);
 
-const aPrescripcion = (semana: number, v: ValoresSemana): PrescripcionSemanal => {
-  const series = parseInt(String(v.series ?? ''));
-  return {
-    numeroSemana: semana,
-    series: isNaN(series) ? null : series,
-    reps: v.reps?.trim() || null,
-    rir: v.rir?.trim() || null,
-    notasPeso: v.notasPeso?.trim() || null,
-  };
+// Muestra el valor en verde si cambio respecto de la semana anterior.
+const Marca: React.FC<{ valor: string; anterior?: string; comparar: boolean }> = ({ valor, anterior, comparar }) =>
+  comparar && valor !== (anterior ?? '')
+    ? <Box component="span" sx={{ bgcolor: '#dcfce7', color: '#15803d', borderRadius: 0.5, px: 0.4, fontWeight: 700 }}>{valor || '—'}</Box>
+    : <>{valor}</>;
+
+// Contenido de una celda: arriba "series × reps", abajo "RIR x · notas".
+const Celda: React.FC<{ ep: EjercicioPlanificado; semana: number }> = ({ ep, semana }) => {
+  const a = prescripcion(ep, semana);
+  const b = semana > 1 ? prescripcion(ep, semana - 1) : undefined;
+  const comparar = semana > 1;
+  const series = texto(a?.series), reps = texto(a?.reps), rir = texto(a?.rir), notas = texto(a?.notasPeso);
+  if (!series && !reps) return <Typography component="span" sx={{ color: '#94a3b8' }}>—</Typography>;
+  const rirAnterior = texto(b?.rir);
+  const muestraRir = !!rir || (comparar && !!rirAnterior);
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+      <Typography component="span" sx={{ fontWeight: 700, color: '#0f172a', fontSize: 14 }}>
+        <Marca valor={series} anterior={texto(b?.series)} comparar={comparar} />
+        {' × '}
+        <Marca valor={reps} anterior={texto(b?.reps)} comparar={comparar} />
+      </Typography>
+      <Typography component="span" sx={{ color: '#64748b', fontSize: 12, minHeight: 16 }}>
+        {rir
+          ? <>RIR <Marca valor={rir} anterior={rirAnterior} comparar={comparar} /></>
+          : (comparar && rirAnterior ? <Marca valor="sin RIR" anterior="" comparar /> : null)}
+        {notas && <>{muestraRir ? ' · ' : ''}<Marca valor={notas} anterior={texto(b?.notasPeso)} comparar={comparar} /></>}
+      </Typography>
+    </Box>
+  );
 };
 
 const DetallePlanificacion: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const esCelular = useMediaQuery(theme.breakpoints.down('md'));
 
   const [plan, setPlan] = useState<Planificacion | null>(null);
-  // Indice de la pestaña: la semana visible es semanaActual + 1.
-  const [semanaActual, setSemanaActual] = useState(0);
   const [dias, setDias] = useState<DiaPlan[]>([]);
+  const [diaActual, setDiaActual] = useState(0);
   const [ejerciciosPorDia, setEjerciciosPorDia] = useState<Record<number, EjercicioPlanificado[]>>({});
   const [catalogoEjercicios, setCatalogoEjercicios] = useState<Ejercicio[]>([]);
 
-  const [dialogDia, setDialogDia] = useState(false);
-  const [diaForm, setDiaForm] = useState(DIAS[0]);
-
-  const [dialogEditarEjercicio, setDialogEditarEjercicio] = useState(false);
-  const [ejercicioEditando, setEjercicioEditando] = useState<EjercicioPlanificado | null>(null);
-  const [edicionForm, setEdicionForm] = useState<FilaDraftPorDia>({});
-
-  // Fila nueva inline por día
-  const [nuevaFilaPorDia, setNuevaFilaPorDia] = useState<Record<number, FilaDraftPorDia | null>>({});
+  const [modal, setModal] = useState<Modal | null>(null);
+  const [guardandoEjercicio, setGuardandoEjercicio] = useState(false);
+  // Ultimo ejercicio eliminado, para "Deshacer".
+  const [eliminado, setEliminado] = useState<EjercicioPlanificado | null>(null);
 
   const [guardando, setGuardando] = useState(false);
   const [cambiosSinGuardar, setCambiosSinGuardar] = useState(false);
@@ -81,30 +117,41 @@ const DetallePlanificacion: React.FC = () => {
   });
 
   const cantidadSemanas = plan?.cantidadSemanas || 1;
-  const semana = Math.min(semanaActual, cantidadSemanas - 1) + 1;
+  const semanas = Array.from({ length: cantidadSemanas }, (_, i) => i + 1);
+  const dia = dias[Math.min(diaActual, dias.length - 1)];
+  const ejerciciosDia = dia?.id ? (ejerciciosPorDia[dia.id] || []) : [];
+
+  const avisar = (mensaje: string, tipo: 'success' | 'error' | 'warning' = 'error') =>
+    setSnackbar({ open: true, mensaje, tipo });
 
   useEffect(() => {
     if (id) {
       planificacionService.getById(id).then(res => setPlan(res.data)).catch(() => {
-        setSnackbar({ open: true, mensaje: 'No se pudo cargar la planificación.', tipo: 'error' });
+        avisar('No se pudo cargar la planificación.');
       });
       cargarDias();
       ejercicioService.getAll().then(res => setCatalogoEjercicios(res.data)).catch(() => {
-        setSnackbar({ open: true, mensaje: 'No se pudo cargar el catálogo de ejercicios.', tipo: 'error' });
+        avisar('No se pudo cargar el catálogo de ejercicios.');
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const cargarDias = () => {
+  const cargarDias = (seleccionarId?: number) => {
     if (!id) return;
     diaPlanService.getByPlanificacion(id).then(res => {
       setDias(res.data);
+      if (seleccionarId) {
+        const idx = res.data.findIndex(d => d.id === seleccionarId);
+        if (idx >= 0) setDiaActual(idx);
+      } else {
+        setDiaActual(prev => Math.max(0, Math.min(prev, res.data.length - 1)));
+      }
       res.data.forEach(d => {
         if (d.id) cargarEjercicios(d.id);
       });
     }).catch(() => {
-      setSnackbar({ open: true, mensaje: 'No se pudieron cargar los días.', tipo: 'error' });
+      avisar('No se pudieron cargar los días.');
     });
   };
 
@@ -112,24 +159,7 @@ const DetallePlanificacion: React.FC = () => {
     ejercicioPlanificadoService.getByDia(diaId).then(res => {
       setEjerciciosPorDia(prev => ({ ...prev, [diaId]: res.data }));
     }).catch(() => {
-      setSnackbar({ open: true, mensaje: 'No se pudieron cargar los ejercicios.', tipo: 'error' });
-    });
-  };
-
-  const actualizarCantidadSemanas = (cantidad?: number) => {
-    setPlan(prev => prev ? { ...prev, cantidadSemanas: cantidad } : prev);
-  };
-
-  // Agrega una semana al final con los mismos valores que la ultima.
-  const agregarSemana = () => {
-    if (!id) return;
-    setCambiosSinGuardar(true);
-    planificacionService.agregarSemana(id).then((res) => {
-      actualizarCantidadSemanas(res.data.cantidadSemanas);
-      setSemanaActual((res.data.cantidadSemanas || 1) - 1);
-      cargarDias();
-    }).catch((err) => {
-      setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo agregar la semana.', tipo: 'error' });
+      avisar('No se pudieron cargar los ejercicios.');
     });
   };
 
@@ -140,10 +170,10 @@ const DetallePlanificacion: React.FC = () => {
       .then((res) => {
         setPlan(res.data);
         setCambiosSinGuardar(false);
-        setSnackbar({ open: true, mensaje: 'Plan guardado correctamente', tipo: 'success' });
+        avisar('Plan guardado correctamente', 'success');
       })
       .catch(() => {
-        setSnackbar({ open: true, mensaje: 'No se pudo guardar el plan', tipo: 'error' });
+        avisar('No se pudo guardar el plan');
       })
       .finally(() => setGuardando(false));
   };
@@ -151,114 +181,152 @@ const DetallePlanificacion: React.FC = () => {
   const enviarPorMail = () => {
     if (!id) return;
     if (cambiosSinGuardar) {
-      setSnackbar({ open: true, mensaje: 'Debés guardar el plan antes de enviarlo por mail', tipo: 'warning' });
+      avisar('Debés guardar el plan antes de enviarlo por mail', 'warning');
       return;
     }
     planificacionService.enviar(id)
-      .then(() => setSnackbar({ open: true, mensaje: 'Planificación enviada por mail en formato PDF', tipo: 'success' }))
-      .catch((err) => setSnackbar({ open: true, mensaje: err.response?.data || 'No se pudo enviar el mail.', tipo: 'error' }));
+      .then(() => avisar('Planificación enviada por mail en formato PDF', 'success'))
+      .catch((err) => avisar(err.response?.data || 'No se pudo enviar el mail.'));
   };
 
-  const eliminarSemana = (numero: number) => {
-    if (!id) return;
-    const aviso = numero < cantidadSemanas
-      ? `¿Eliminar la Semana ${numero}? Las semanas siguientes se corren un lugar.`
-      : `¿Eliminar la Semana ${numero}?`;
-    if (window.confirm(aviso)) {
-      setCambiosSinGuardar(true);
-      planificacionService.eliminarSemana(id, numero).then((res) => {
-        actualizarCantidadSemanas(res.data.cantidadSemanas);
-        setSemanaActual(prev => Math.min(prev, (res.data.cantidadSemanas || 1) - 1));
-        cargarDias();
-      }).catch((err) => {
-        setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo eliminar la semana.', tipo: 'error' });
-      });
-    }
-  };
-
+  // Agrega el siguiente "Día N" que no exista todavía.
   const agregarDia = () => {
     if (!id) return;
-    const nuevoDia: Partial<DiaPlan> = {
-      planificacion: { id: parseInt(id) },
-      diaSemana: diaForm,
-    };
+    const usados = new Set(dias.map(d => d.diaSemana));
+    const nombre = DIAS.find(d => !usados.has(d)) || `Día ${dias.length + 1}`;
     setCambiosSinGuardar(true);
-    diaPlanService.create(nuevoDia).then(() => {
-      cargarDias();
-      setDialogDia(false);
-    }).catch((err) => {
-      alert(err.response?.data?.error || 'No se pudo agregar el día de entrenamiento.');
-    });
+    diaPlanService.create({ planificacion: { id: parseInt(id) }, diaSemana: nombre })
+      .then((res) => cargarDias(res.data.id))
+      .catch((err) => avisar(err.response?.data?.error || 'No se pudo agregar el día de entrenamiento.'));
   };
 
-  const eliminarDia = (diaId?: number) => {
-    if (!diaId) return;
-    if (window.confirm('¿Eliminar este día y sus ejercicios? Se borra de todas las semanas.')) {
+  const eliminarDia = () => {
+    if (!dia?.id) return;
+    if (window.confirm(`¿Eliminar ${dia.diaSemana} y todos sus ejercicios?`)) {
       setCambiosSinGuardar(true);
-      diaPlanService.delete(diaId).then(() => cargarDias()).catch((err) => {
-        setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo eliminar el día.', tipo: 'error' });
+      diaPlanService.delete(dia.id).then(() => cargarDias()).catch((err) => {
+        avisar(err.response?.data?.error || 'No se pudo eliminar el día.');
       });
     }
   };
 
-  // Se carga para la semana visible; el backend copia esos valores al resto de las semanas.
-  const guardarNuevoEjercicio = (diaId: number) => {
-    const fila = nuevaFilaPorDia[diaId];
-    if (!fila?.ejercicioId) return;
-    const prescripcion = aPrescripcion(semana, fila);
-    if (prescripcion.series === null || !prescripcion.reps) {
-      setSnackbar({ open: true, mensaje: 'Cargá series y repeticiones.', tipo: 'warning' });
+  // ---- Ventana de agregar / editar ejercicio ----
+
+  const abrirAgregar = () => {
+    if (!dia?.id) return;
+    const ultimo = ejerciciosDia[ejerciciosDia.length - 1];
+    setModal({
+      ep: null,
+      diaId: dia.id,
+      semanaFoco: null,
+      ejercicio: null,
+      patronNuevo: '',
+      circuito: ultimo?.circuito || 'CF1',
+      filas: semanas.map(filaVacia),
+      error: '',
+    });
+  };
+
+  const abrirEditar = (ep: EjercicioPlanificado, semanaFoco: number | null = null) => {
+    if (!dia?.id) return;
+    setModal({
+      ep,
+      diaId: dia.id,
+      semanaFoco,
+      ejercicio: ep.ejercicio || null,
+      patronNuevo: '',
+      circuito: ep.circuito || '',
+      filas: semanas.map(s => {
+        const p = prescripcion(ep, s);
+        return { series: texto(p?.series), reps: texto(p?.reps), rir: texto(p?.rir), notasPeso: texto(p?.notasPeso) };
+      }),
+      error: '',
+    });
+  };
+
+  const cambiarFila = (idx: number, campo: keyof FilaSemana, valor: string) => {
+    setModal(m => m ? { ...m, filas: m.filas.map((f, i) => i === idx ? { ...f, [campo]: valor } : f) } : m);
+  };
+
+  const repetirSemana1 = () => {
+    setModal(m => m ? { ...m, filas: m.filas.map(() => ({ ...m.filas[0] })) } : m);
+  };
+
+  const guardarEjercicio = async () => {
+    if (!modal) return;
+    const errores: string[] = [];
+    if (!modal.ejercicio) errores.push('Elegí un ejercicio.');
+    if (modal.ejercicio?.crear && !modal.patronNuevo) errores.push('Elegí el patrón del ejercicio nuevo.');
+    if (!modal.filas[0]?.series.trim() || !modal.filas[0]?.reps.trim()) errores.push('Completá series y reps de la semana 1.');
+    if (modal.filas.some(f => f.series.trim() && isNaN(parseInt(f.series)))) errores.push('Las series tienen que ser un número.');
+    if (errores.length) {
+      setModal({ ...modal, error: errores.join(' ') });
       return;
     }
-    const nuevoEjercicio: Partial<EjercicioPlanificado> = {
+
+    setGuardandoEjercicio(true);
+    try {
+      let ejercicio = modal.ejercicio as Ejercicio;
+      if (modal.ejercicio?.crear) {
+        const res = await ejercicioService.create({ nombre: modal.ejercicio.nombre.trim(), patronMovimiento: modal.patronNuevo as PatronMovimiento });
+        ejercicio = res.data;
+        setCatalogoEjercicios(prev => [...prev, res.data]);
+      }
+      const prescripciones: PrescripcionSemanal[] = modal.filas.map((f, i) => ({
+        numeroSemana: i + 1,
+        series: f.series.trim() ? parseInt(f.series) : null,
+        reps: f.reps.trim() || null,
+        rir: f.rir.trim() || null,
+        notasPeso: f.notasPeso.trim() || null,
+      }));
+      const datos: Partial<EjercicioPlanificado> = {
+        diaPlan: { id: modal.diaId },
+        ejercicio: { id: ejercicio.id } as Ejercicio,
+        circuito: modal.circuito || null,
+        prescripciones,
+      };
+      if (modal.ep?.id) {
+        await ejercicioPlanificadoService.update(modal.ep.id, datos);
+      } else {
+        await ejercicioPlanificadoService.create(datos);
+      }
+      setCambiosSinGuardar(true);
+      cargarEjercicios(modal.diaId);
+      setModal(null);
+    } catch (err: any) {
+      setModal(m => m ? { ...m, error: err.response?.data?.error || 'No se pudo guardar el ejercicio.' } : m);
+    } finally {
+      setGuardandoEjercicio(false);
+    }
+  };
+
+  // ---- Eliminar con "Deshacer": se borra en el momento y, si se deshace, se vuelve a crear igual ----
+
+  const eliminarEjercicio = (ep: EjercicioPlanificado) => {
+    if (!ep.id || !ep.diaPlan?.id) return;
+    const diaId = ep.diaPlan.id;
+    setCambiosSinGuardar(true);
+    ejercicioPlanificadoService.delete(ep.id).then(() => {
+      setEjerciciosPorDia(prev => ({ ...prev, [diaId]: (prev[diaId] || []).filter(e => e.id !== ep.id) }));
+      setEliminado(ep);
+    }).catch((err) => {
+      avisar(err.response?.data?.error || 'No se pudo eliminar el ejercicio.');
+    });
+  };
+
+  const deshacerEliminar = () => {
+    const ep = eliminado;
+    setEliminado(null);
+    if (!ep?.diaPlan?.id) return;
+    const diaId = ep.diaPlan.id;
+    ejercicioPlanificadoService.create({
       diaPlan: { id: diaId },
-      ejercicio: { id: fila.ejercicioId } as Ejercicio,
-      circuito: fila.circuito || undefined,
-      prescripciones: [prescripcion],
-    };
-    setCambiosSinGuardar(true);
-    ejercicioPlanificadoService.create(nuevoEjercicio).then(() => {
-      cargarEjercicios(diaId);
-      setNuevaFilaPorDia(prev => ({ ...prev, [diaId]: null }));
-    }).catch((err) => {
-      alert(err.response?.data?.error || 'No se pudo agregar el ejercicio.');
-    });
-  };
-
-  const eliminarEjercicio = (ejercicioId?: number, diaId?: number) => {
-    if (!ejercicioId || !diaId) return;
-    setCambiosSinGuardar(true);
-    ejercicioPlanificadoService.delete(ejercicioId).then(() => cargarEjercicios(diaId)).catch((err) => {
-      setSnackbar({ open: true, mensaje: err.response?.data?.error || 'No se pudo eliminar el ejercicio.', tipo: 'error' });
-    });
-  };
-
-  const abrirEditarEjercicio = (ep: EjercicioPlanificado) => {
-    const p = prescripcionDe(ep, semana);
-    setEjercicioEditando(ep);
-    setEdicionForm({
-      circuito: ep.circuito || '',
-      series: p?.series ?? '',
-      reps: p?.reps || '',
-      rir: p?.rir || '',
-      notasPeso: p?.notasPeso || '',
-    });
-    setDialogEditarEjercicio(true);
-  };
-
-  // Cambia el circuito (vale para todas las semanas) y los valores de la semana visible.
-  const guardarEditarEjercicio = () => {
-    if (!ejercicioEditando || !ejercicioEditando.id || !ejercicioEditando.diaPlan?.id) return;
-    const diaId = ejercicioEditando.diaPlan.id;
-    setCambiosSinGuardar(true);
-    ejercicioPlanificadoService.update(ejercicioEditando.id, {
-      circuito: edicionForm.circuito || null,
-      prescripciones: [aPrescripcion(semana, edicionForm)],
-    }).then(() => {
-      cargarEjercicios(diaId);
-      setDialogEditarEjercicio(false);
-    }).catch((err) => {
-      alert(err.response?.data?.error || 'No se pudo editar el ejercicio.');
+      ejercicio: { id: ep.ejercicio?.id } as Ejercicio,
+      circuito: ep.circuito,
+      orden: ep.orden,
+      prescripciones: (ep.prescripciones || []).map(p => ({ ...p, id: undefined })),
+    }).then(() => cargarEjercicios(diaId)).catch((err) => {
+      avisar(err.response?.data?.error || 'No se pudo restaurar el ejercicio.');
     });
   };
 
@@ -278,6 +346,32 @@ const DetallePlanificacion: React.FC = () => {
   };
   const st = estadoStyles[plan.estado] || estadoStyles.BORRADOR;
 
+  // Circuitos para el selector: los de siempre + los que ya use el plan.
+  const opcionesCircuito = Array.from(new Set([
+    ...CIRCUITOS,
+    ...Object.values(ejerciciosPorDia).flat().map(e => e.circuito || '').filter(Boolean),
+    ...(modal?.circuito ? [modal.circuito] : []),
+  ]));
+
+  const botonesFila = (ep: EjercicioPlanificado) => (
+    <>
+      <Tooltip title="Editar">
+        <IconButton size="small" onClick={() => abrirEditar(ep)} sx={{ color: '#0284c7' }}>
+          <EditIcon sx={{ fontSize: 17 }} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Eliminar">
+        <IconButton size="small" color="error" onClick={() => eliminarEjercicio(ep)}>
+          <DeleteIcon sx={{ fontSize: 17 }} />
+        </IconButton>
+      </Tooltip>
+    </>
+  );
+
+  const chipCircuito = (circuito?: string | null) => circuito
+    ? <Chip label={circuito} size="small" sx={{ bgcolor: '#dcfce7', color: '#15803d', fontWeight: 700, fontSize: 11 }} />
+    : <Typography component="span" sx={{ color: '#94a3b8' }}>—</Typography>;
+
   return (
     <Box>
       {/* Header */}
@@ -291,7 +385,7 @@ const DetallePlanificacion: React.FC = () => {
               <ArrowBackIcon />
             </IconButton>
             <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                   {plan.nombre}
                 </Typography>
@@ -299,6 +393,11 @@ const DetallePlanificacion: React.FC = () => {
                   label={st.label}
                   size="small"
                   sx={{ bgcolor: st.bg, color: st.text, border: `1px solid ${st.border}`, fontWeight: 700 }}
+                />
+                <Chip
+                  label={`${cantidadSemanas} ${cantidadSemanas === 1 ? 'semana' : 'semanas'}`}
+                  size="small"
+                  sx={{ bgcolor: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', fontWeight: 700 }}
                 />
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
@@ -325,21 +424,11 @@ const DetallePlanificacion: React.FC = () => {
             >
               Enviar por mail
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={agregarSemana}
-              disabled={cantidadSemanas >= MAX_SEMANAS}
-              sx={{ fontWeight: 700, px: 2.5 }}
-            >
-              Agregar semana
-            </Button>
           </Box>
         </Box>
       </Paper>
 
-      {/* Bloques Fijos */}
+      {/* Bloques Fijos (sin cambios: iguales todas las semanas) */}
       {id && (
         <>
           <BloqueFijo
@@ -360,428 +449,298 @@ const DetallePlanificacion: React.FC = () => {
         </>
       )}
 
-      {/* Tabs de semanas */}
-      <Paper elevation={1} sx={{ p: 1.5, mb: 3.5, borderRadius: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' }, justifyContent: 'space-between', gap: 2 }}>
-        <Box sx={{ minWidth: 0 }}>
+      {/* Bloque de fuerza: un día a la vez, con todas las semanas */}
+      <Paper elevation={1} sx={{ mb: 3.5, borderRadius: 3, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', px: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Tabs
-            value={semana - 1}
-            onChange={(_, v) => { setSemanaActual(v); setNuevaFilaPorDia({}); }}
+            value={dia ? Math.min(diaActual, dias.length - 1) : false}
+            onChange={(_, v) => setDiaActual(v)}
             variant="scrollable"
             scrollButtons="auto"
             sx={{
+              minWidth: 0,
               '& .MuiTabs-indicator': { height: 3, borderRadius: 1.5, bgcolor: '#16a34a' },
               '& .MuiTab-root': { fontWeight: 700, fontSize: '0.875rem', textTransform: 'none', color: '#64748b', '&.Mui-selected': { color: '#16a34a' } }
             }}
           >
-            {Array.from({ length: cantidadSemanas }, (_, i) => (
-              <Tab key={i} label={`Semana ${i + 1}`} />
-            ))}
+            {dias.map((d) => <Tab key={d.id} label={d.diaSemana} />)}
           </Tabs>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', px: 2, pt: 0.5 }}>
-            Los días y ejercicios son los mismos todas las semanas. Series, reps, RIR y notas se cargan por semana.
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', px: 1, flexWrap: 'wrap' }}>
-          <Tooltip title={cantidadSemanas > 1 ? `Eliminar Semana ${semana}` : 'El plan necesita al menos una semana'}>
-            <span>
-              <IconButton
-                size="small"
-                color="error"
-                disabled={cantidadSemanas <= 1}
-                onClick={() => eliminarSemana(semana)}
-                sx={{ bgcolor: '#fef2f2' }}
-              >
-                <DeleteIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </span>
-          </Tooltip>
           <Button
             size="small"
-            variant="outlined"
-            color="primary"
             startIcon={<AddIcon />}
-            onClick={() => { setDiaForm(DIAS[0]); setDialogDia(true); }}
-            sx={{ ml: 1, fontWeight: 700 }}
+            onClick={agregarDia}
+            sx={{ fontWeight: 700, color: '#15803d', whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             Agregar día
           </Button>
         </Box>
-      </Paper>
 
-      {/* Días del plan (los mismos en todas las semanas) */}
-          {dias.map((dia) => (
-            <Paper key={dia.id} elevation={1} sx={{ mb: 3.5, borderRadius: 3, overflow: 'hidden' }}>
-              {/* Header día */}
-              <Box
+        {!dia && (
+          <Box sx={{ p: 5, textAlign: 'center' }}>
+            <Typography variant="body1" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
+              No hay días cargados todavía
+            </Typography>
+            <Button size="small" variant="outlined" color="primary" startIcon={<AddIcon />} onClick={agregarDia} sx={{ fontWeight: 700 }}>
+              Agregar primer día
+            </Button>
+          </Box>
+        )}
+
+        {dia && (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 1.5, bgcolor: '#f8fafc', borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a' }}>{dia.diaSemana}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                  {ejerciciosDia.length} ejercicios
+                </Typography>
+                <Tooltip title="Eliminar día">
+                  <IconButton size="small" color="error" onClick={eliminarDia}>
+                    <DeleteIcon sx={{ fontSize: 17 }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Box>
+
+            {/* Compu: matriz ejercicios x semanas */}
+            {!esCelular && (
+              <TableContainer sx={{ overflowX: 'auto' }}>
+                <Table size="small" sx={{ minWidth: 860 }}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ width: 36, color: '#64748b', fontWeight: 700, fontSize: 11 }}>#</TableCell>
+                      <TableCell sx={{ width: 80, color: '#64748b', fontWeight: 700, fontSize: 11 }}>CIRCUITO</TableCell>
+                      <TableCell sx={{ color: '#64748b', fontWeight: 700, fontSize: 11 }}>EJERCICIO</TableCell>
+                      {semanas.map(s => (
+                        <TableCell key={s} align="center" sx={{ color: '#64748b', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap' }}>
+                          SEMANA {s}
+                        </TableCell>
+                      ))}
+                      <TableCell sx={{ width: 84 }} />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {ejerciciosDia.map((ep, k) => (
+                      <TableRow key={ep.id} hover>
+                        <TableCell sx={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>{k + 1}</TableCell>
+                        <TableCell>{chipCircuito(ep.circuito)}</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem', minWidth: 200 }}>{ep.ejercicio?.nombre}</TableCell>
+                        {semanas.map(s => (
+                          <TableCell
+                            key={s}
+                            align="center"
+                            onClick={() => abrirEditar(ep, s)}
+                            title={`Editar semana ${s}`}
+                            sx={{ cursor: 'pointer', px: 1, '&:hover': { bgcolor: '#f8fafc', outline: '1px solid #e2e8f0', outlineOffset: -4, borderRadius: 2 } }}
+                          >
+                            <Celda ep={ep} semana={s} />
+                          </TableCell>
+                        ))}
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{botonesFila(ep)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+
+            {/* Celular: una tarjeta por ejercicio con sus semanas en lista */}
+            {esCelular && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 1.75 }}>
+                {ejerciciosDia.map((ep, k) => (
+                  <Box key={ep.id} sx={{ border: '1px solid #e2e8f0', borderRadius: 3, p: 1.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+                      <Box>
+                        <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600 }}>
+                          #{k + 1}{ep.circuito ? ` · ${ep.circuito}` : ''}
+                        </Typography>
+                        <Typography sx={{ fontWeight: 700, color: '#0f172a', lineHeight: 1.35 }}>{ep.ejercicio?.nombre}</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', flexShrink: 0 }}>{botonesFila(ep)}</Box>
+                    </Box>
+                    {semanas.map(s => (
+                      <Box
+                        key={s}
+                        onClick={() => abrirEditar(ep, s)}
+                        sx={{ display: 'grid', gridTemplateColumns: '76px 1fr', gap: 1, py: 0.9, px: 0.5, borderTop: '1px solid #e2e8f0', cursor: 'pointer' }}
+                      >
+                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>Semana {s}</Typography>
+                        <Celda ep={ep} semana={s} />
+                      </Box>
+                    ))}
+                  </Box>
+                ))}
+              </Box>
+            )}
+
+            <Box sx={{ p: 2 }}>
+              <Button
+                fullWidth
+                startIcon={<AddIcon />}
+                onClick={abrirAgregar}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  px: 2.5,
-                  py: 1.8,
-                  bgcolor: '#f8fafc',
-                  borderBottom: '1px solid',
-                  borderColor: 'divider'
+                  border: '1.5px dashed #16a34a', bgcolor: '#f0fdf4', color: '#15803d', borderRadius: 2.5, py: 1.4, fontWeight: 700,
+                  '&:hover': { bgcolor: '#dcfce7' }
                 }}
               >
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a' }}>
-                  {dia.diaSemana}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Chip
-                    label={`${dia.id ? (ejerciciosPorDia[dia.id] || []).length : 0} ejercicios`}
-                    size="small"
-                    sx={{ bgcolor: '#ffffff', border: '1px solid #e2e8f0', fontWeight: 600, fontSize: '0.725rem' }}
-                  />
-                  <Tooltip title="Eliminar Día">
-                    <IconButton size="small" color="error" onClick={() => eliminarDia(dia.id)}>
-                      <DeleteIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
+                Agregar ejercicio
+              </Button>
+            </Box>
+          </>
+        )}
+      </Paper>
+
+      {/* Ventana agregar / editar ejercicio */}
+      <Dialog
+        open={!!modal}
+        onClose={() => !guardandoEjercicio && setModal(null)}
+        maxWidth="md"
+        fullWidth
+        fullScreen={esCelular}
+        slotProps={{ paper: { sx: { borderRadius: esCelular ? 0 : 4 } } }}
+      >
+        {modal && (
+          <>
+            <DialogTitle sx={{ pb: 1 }}>
+              <Box component="span" sx={{ display: 'block', fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif', fontWeight: 800, fontSize: '1.25rem', color: '#0f172a' }}>
+                {modal.ep ? 'Editar ejercicio' : 'Agregar ejercicio'}
+              </Box>
+              <Box component="span" sx={{ display: 'block', color: '#64748b', fontSize: 14, fontWeight: 500 }}>
+                {dias.find(d => d.id === modal.diaId)?.diaSemana}{modal.semanaFoco ? ` · Semana ${modal.semanaFoco}` : ''}
+              </Box>
+            </DialogTitle>
+            <Divider />
+            <DialogContent sx={{ pt: 2.5, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0,1fr) 140px' }, gap: 1.5, pt: 1 }}>
+                <Autocomplete<OpcionEjercicio>
+                  size="small"
+                  options={catalogoEjercicios}
+                  value={modal.ejercicio}
+                  isOptionEqualToValue={(a, b) => a.id === b.id && a.nombre === b.nombre}
+                  getOptionLabel={(e) => e.nombre}
+                  getOptionKey={(e) => e.crear ? `crear-${e.nombre}` : String(e.id)}
+                  filterOptions={(options, estado) => {
+                    const lista = filtroBase(options, { ...estado, inputValue: sinTildes(estado.inputValue) });
+                    const q = estado.inputValue.trim();
+                    if (q && !options.some(o => sinTildes(o.nombre) === sinTildes(q))) {
+                      lista.push({ nombre: q, patronMovimiento: 'EMPUJE', crear: true });
+                    }
+                    return lista;
+                  }}
+                  renderOption={(props, e) => {
+                    const { key, ...resto } = props as React.HTMLAttributes<HTMLLIElement> & { key: string };
+                    return (
+                      <li key={key} {...resto} style={e.crear ? { color: '#15803d', fontWeight: 700 } : undefined}>
+                        {e.crear ? `+ Crear ejercicio «${e.nombre}»` : e.nombre}
+                      </li>
+                    );
+                  }}
+                  onChange={(_, valor) => setModal(m => m ? { ...m, ejercicio: valor, error: '' } : m)}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Ejercicio" placeholder="Buscar en el catálogo..." autoFocus={!modal.semanaFoco} />
+                  )}
+                />
+                <TextField
+                  select
+                  size="small"
+                  label="Circuito"
+                  value={modal.circuito}
+                  onChange={(e) => setModal(m => m ? { ...m, circuito: e.target.value } : m)}
+                >
+                  <MenuItem value=""><em>Sin circuito</em></MenuItem>
+                  {opcionesCircuito.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                </TextField>
+              </Box>
+
+              {modal.ejercicio?.crear && (
+                <TextField
+                  select
+                  size="small"
+                  label="Patrón del ejercicio nuevo"
+                  value={modal.patronNuevo}
+                  onChange={(e) => setModal(m => m ? { ...m, patronNuevo: e.target.value as PatronMovimiento } : m)}
+                  helperText={`Se agrega «${modal.ejercicio.nombre}» al catálogo de ejercicios.`}
+                >
+                  {PATRONES.map(p => <MenuItem key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</MenuItem>)}
+                </TextField>
+              )}
+
+              <Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, gap: 1, flexWrap: 'wrap' }}>
+                  <Typography sx={{ fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif', fontWeight: 700, fontSize: 14 }}>
+                    Progresión por semana
+                  </Typography>
+                  {cantidadSemanas > 1 && (
+                    <Button size="small" onClick={repetirSemana1} sx={{ fontWeight: 700, color: '#15803d' }}>
+                      Repetir semana 1 en todas
+                    </Button>
+                  )}
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                  {!esCelular && (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '80px 80px 90px 80px minmax(0,1fr)', gap: 1, px: 0.75 }}>
+                      {['SEMANA', 'SERIES', 'REPS', 'RIR', 'NOTAS / PESO'].map(h => (
+                        <Typography key={h} variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>{h}</Typography>
+                      ))}
+                    </Box>
+                  )}
+                  {modal.filas.map((f, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: esCelular ? '1fr 1fr 1fr' : '80px 80px 90px 80px minmax(0,1fr)',
+                        gap: 1, alignItems: 'center', p: 0.75, borderRadius: 2,
+                        ...(modal.semanaFoco === i + 1 ? { bgcolor: '#f0fdf4', outline: '1px solid #16a34a' } : {}),
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 700, color: '#334155', fontSize: 13, gridColumn: esCelular ? '1 / -1' : undefined }}>
+                        Semana {i + 1}
+                      </Typography>
+                      <TextField size="small" placeholder="Series" value={f.series} slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-label': `Series semana ${i + 1}` } }}
+                        autoFocus={modal.semanaFoco === i + 1}
+                        onChange={(e) => cambiarFila(i, 'series', e.target.value)} />
+                      <TextField size="small" placeholder="Reps" value={f.reps} slotProps={{ htmlInput: { 'aria-label': `Reps semana ${i + 1}` } }}
+                        onChange={(e) => cambiarFila(i, 'reps', e.target.value)} />
+                      <TextField size="small" placeholder="RIR" value={f.rir} slotProps={{ htmlInput: { 'aria-label': `RIR semana ${i + 1}` } }}
+                        onChange={(e) => cambiarFila(i, 'rir', e.target.value)} />
+                      <TextField size="small" placeholder="Notas / peso" value={f.notasPeso} slotProps={{ htmlInput: { 'aria-label': `Notas o peso semana ${i + 1}` } }}
+                        sx={{ gridColumn: esCelular ? '1 / -1' : undefined }}
+                        onChange={(e) => cambiarFila(i, 'notasPeso', e.target.value)} />
+                    </Box>
+                  ))}
                 </Box>
               </Box>
 
-              {/* Tabla de ejercicios */}
-              <TableContainer sx={{ overflowX: 'auto' }}>
-              <Table size="small" sx={{ minWidth: 640 }}>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#ffffff' }}>
-                    <TableCell sx={{ width: 40, color: '#64748b', fontWeight: 700, fontSize: 11 }}>#</TableCell>
-                    <TableCell sx={{ width: 90, color: '#64748b', fontWeight: 700, fontSize: 11 }}>CIRCUITO</TableCell>
-                    <TableCell sx={{ color: '#64748b', fontWeight: 700, fontSize: 11 }}>EJERCICIO</TableCell>
-                    <TableCell sx={{ width: 90, color: '#64748b', fontWeight: 700, fontSize: 11 }}>SERIES</TableCell>
-                    <TableCell sx={{ width: 90, color: '#64748b', fontWeight: 700, fontSize: 11 }}>REPS</TableCell>
-                    <TableCell sx={{ width: 90, color: '#64748b', fontWeight: 700, fontSize: 11 }}>RIR</TableCell>
-                    <TableCell sx={{ color: '#64748b', fontWeight: 700, fontSize: 11 }}>NOTAS / PESO</TableCell>
-                    <TableCell sx={{ width: 90, textAlign: 'right' }} />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {(dia.id ? (ejerciciosPorDia[dia.id] || []) : []).map((ep) => {
-                    const p = prescripcionDe(ep, semana);
-                    return (
-                    <TableRow key={ep.id} hover sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
-                      <TableCell sx={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>{ep.orden}</TableCell>
-                      <TableCell>
-                        {ep.circuito ? (
-                          <Chip
-                            label={ep.circuito}
-                            size="small"
-                            sx={{ bgcolor: '#dcfce7', color: '#15803d', fontWeight: 700, fontSize: 11 }}
-                          />
-                        ) : '—'}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>
-                        {ep.ejercicio?.nombre}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#334155' }}>{p?.series ?? '—'}</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#334155' }}>{p?.reps || '—'}</TableCell>
-                      <TableCell>
-                        {p?.rir ? (
-                          <Chip
-                            label={`RIR ${p.rir}`}
-                            size="small"
-                            sx={{ bgcolor: '#fef3c7', color: '#b45309', fontWeight: 700, fontSize: 11 }}
-                          />
-                        ) : '—'}
-                      </TableCell>
-                      <TableCell sx={{ color: '#64748b', fontSize: 13 }}>{p?.notasPeso || '—'}</TableCell>
-                      <TableCell sx={{ textAlign: 'right' }}>
-                        <Tooltip title="Editar">
-                          <IconButton size="small" onClick={() => abrirEditarEjercicio(ep)} sx={{ color: '#0284c7', mr: 0.5 }}>
-                            <EditIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar">
-                          <IconButton size="small" color="error" onClick={() => eliminarEjercicio(ep.id, dia.id)}>
-                            <DeleteIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                    );
-                  })}
-
-                  {/* Fila nueva inline */}
-                  {dia.id && nuevaFilaPorDia[dia.id] && (
-                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                      <TableCell sx={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>
-                        {(ejerciciosPorDia[dia.id]?.length || 0) + 1}
-                      </TableCell>
-                      <TableCell>
-                        <InputBase
-                          size="small"
-                          placeholder="ej: CF1"
-                          value={nuevaFilaPorDia[dia.id]?.circuito || ''}
-                          sx={{ width: 70, fontSize: 13, borderBottom: '1px solid #cbd5e1' }}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (dia.id) {
-                              setNuevaFilaPorDia(prev => ({
-                                ...prev, [dia.id as number]: { ...prev[dia.id as number], circuito: val }
-                              }));
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Autocomplete
-                          size="small"
-                          options={catalogoEjercicios}
-                          getOptionLabel={(e) => `${e.nombre}`}
-                          filterOptions={(options, { inputValue }) => {
-                            if (inputValue.length < 2) return options.slice(0, 20);
-                            const input = inputValue.toLowerCase();
-                            return options.filter(o => o.nombre.toLowerCase().includes(input));
-                          }}
-                          onChange={(_, newValue) => {
-                            if (dia.id) {
-                              setNuevaFilaPorDia(prev => ({
-                                ...prev, [dia.id as number]: { ...prev[dia.id as number], ejercicioId: newValue?.id }
-                              }));
-                            }
-                          }}
-                          renderInput={(params) => (
-                            <TextField {...params} placeholder="Buscar ejercicio..." variant="standard" size="small" />
-                          )}
-                          sx={{ minWidth: 200 }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <InputBase
-                          size="small"
-                          placeholder="Series"
-                          value={nuevaFilaPorDia[dia.id]?.series ?? ''}
-                          sx={{ width: 60, fontSize: 13, borderBottom: '1px solid #cbd5e1' }}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (dia.id) {
-                              setNuevaFilaPorDia(prev => ({
-                                ...prev, [dia.id as number]: { ...prev[dia.id as number], series: val }
-                              }));
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <InputBase
-                          size="small"
-                          placeholder="Reps"
-                          value={nuevaFilaPorDia[dia.id]?.reps ?? ''}
-                          sx={{ width: 60, fontSize: 13, borderBottom: '1px solid #cbd5e1' }}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (dia.id) {
-                              setNuevaFilaPorDia(prev => ({
-                                ...prev, [dia.id as number]: { ...prev[dia.id as number], reps: val }
-                              }));
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <InputBase
-                          size="small"
-                          placeholder="RIR"
-                          value={nuevaFilaPorDia[dia.id]?.rir ?? ''}
-                          sx={{ width: 60, fontSize: 13, borderBottom: '1px solid #cbd5e1' }}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (dia.id) {
-                              setNuevaFilaPorDia(prev => ({
-                                ...prev, [dia.id as number]: { ...prev[dia.id as number], rir: val }
-                              }));
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <InputBase
-                          size="small"
-                          placeholder="Notas o peso..."
-                          value={nuevaFilaPorDia[dia.id]?.notasPeso ?? ''}
-                          sx={{ fontSize: 13, width: '100%', borderBottom: '1px solid #16a34a' }}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (dia.id) {
-                              setNuevaFilaPorDia(prev => ({
-                                ...prev, [dia.id as number]: { ...prev[dia.id as number], notasPeso: val }
-                              }));
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ textAlign: 'right' }}>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="primary"
-                          onClick={() => dia.id && guardarNuevoEjercicio(dia.id)}
-                          sx={{ py: 0.4, px: 1.5, fontSize: '0.75rem' }}
-                        >
-                          Guardar
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-              </TableContainer>
-
-              {/* Botón agregar ejercicio */}
-              {dia.id && (
-                <Box
-                  onClick={() => {
-                    const idDia = dia.id as number;
-                    const ejerciciosDelDia = ejerciciosPorDia[idDia] || [];
-                    const ultimo = ejerciciosDelDia[ejerciciosDelDia.length - 1];
-                    setNuevaFilaPorDia(prev => ({
-                      ...prev,
-                      [idDia]: { circuito: ultimo?.circuito, series: ultimo ? prescripcionDe(ultimo, semana)?.series : undefined },
-                    }));
-                  }}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    px: 2.5,
-                    py: 1.2,
-                    cursor: 'pointer',
-                    color: '#64748b',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    borderTop: '1px dashed #e2e8f0',
-                    transition: 'all 0.15s ease',
-                    '&:hover': { bgcolor: '#f0fdf4', color: '#16a34a' }
-                  }}
-                >
-                  <AddIcon sx={{ fontSize: 16 }} /> Agregar ejercicio a este día
-                </Box>
-              )}
-            </Paper>
-          ))}
-
-          {dias.length === 0 && (
-            <Paper elevation={1} sx={{ p: 5, textAlign: 'center', borderRadius: 3 }}>
-              <Typography variant="body1" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
-                No hay días cargados todavía
-              </Typography>
+            </DialogContent>
+            {/* Fuera del scroll para que el error siempre se vea */}
+            {modal.error && <Alert severity="error" sx={{ mx: 3, mt: 1.5 }}>{modal.error}</Alert>}
+            <DialogActions sx={{ p: 2.5, pt: 1.5 }}>
+              <Button onClick={() => setModal(null)} disabled={guardandoEjercicio} sx={{ color: '#64748b' }}>Cancelar</Button>
               <Button
-                size="small"
-                variant="outlined"
+                variant="contained"
                 color="primary"
-                startIcon={<AddIcon />}
-                onClick={() => { setDiaForm(DIAS[0]); setDialogDia(true); }}
+                onClick={guardarEjercicio}
+                disabled={guardandoEjercicio}
+                startIcon={guardandoEjercicio ? <CircularProgress size={16} color="inherit" /> : undefined}
                 sx={{ fontWeight: 700 }}
               >
-                Agregar primer día
+                Guardar ejercicio
               </Button>
-            </Paper>
-          )}
-
-      {/* Dialog agregar día */}
-      <Dialog
-        open={dialogDia}
-        onClose={() => setDialogDia(false)}
-        maxWidth="xs"
-        fullWidth
-        slotProps={{ paper: { sx: { borderRadius: 4, p: 1 } } }}
-      >
-        <DialogTitle>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
-            Agregar Día de Entrenamiento
-          </Typography>
-        </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2.5 }}>
-          <TextField
-            fullWidth
-            select
-            size="small"
-            label="Día de la semana"
-            value={diaForm}
-            onChange={(e) => setDiaForm(e.target.value)}
-          >
-            {DIAS.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
-          </TextField>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 1 }}>
-          <Button onClick={() => setDialogDia(false)} sx={{ color: '#64748b' }}>Cancelar</Button>
-          <Button variant="contained" color="primary" onClick={agregarDia} sx={{ fontWeight: 700 }}>Agregar</Button>
-        </DialogActions>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
 
-      {/* Dialog editar ejercicio */}
-      <Dialog
-        open={dialogEditarEjercicio}
-        onClose={() => setDialogEditarEjercicio(false)}
-        maxWidth="sm"
-        fullWidth
-        slotProps={{ paper: { sx: { borderRadius: 4, p: 1 } } }}
-      >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a' }}>
-            Editar Ejercicio
-          </Typography>
-          <Typography variant="body2" color="primary" sx={{ fontWeight: 700 }}>
-            {ejercicioEditando?.ejercicio?.nombre} — Semana {semana}
-          </Typography>
-        </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2.5 }}>
-          <Stack spacing={2}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Circuito / Bloque"
-              placeholder="ej: CF1"
-              helperText="El circuito vale para todas las semanas."
-              value={edicionForm.circuito || ''}
-              onChange={(e) => setEdicionForm(prev => ({ ...prev, circuito: e.target.value }))}
-            />
-            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Series"
-                type="number"
-                value={edicionForm.series ?? ''}
-                onChange={(e) => setEdicionForm(prev => ({ ...prev, series: e.target.value }))}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="Repeticiones"
-                placeholder="ej: 8 o 4-6"
-                value={edicionForm.reps || ''}
-                onChange={(e) => setEdicionForm(prev => ({ ...prev, reps: e.target.value }))}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="RIR"
-                placeholder="ej: 1-2"
-                value={edicionForm.rir || ''}
-                onChange={(e) => setEdicionForm(prev => ({ ...prev, rir: e.target.value }))}
-              />
-            </Box>
-            <TextField
-              fullWidth
-              size="small"
-              label="Notas o peso sugerido"
-              multiline
-              rows={2}
-              value={edicionForm.notasPeso || ''}
-              onChange={(e) => setEdicionForm(prev => ({ ...prev, notasPeso: e.target.value }))}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ p: 2.5, pt: 1.5 }}>
-          <Button onClick={() => setDialogEditarEjercicio(false)} sx={{ color: '#64748b' }}>Cancelar</Button>
-          <Button variant="contained" color="primary" onClick={guardarEditarEjercicio} sx={{ fontWeight: 700 }}>Guardar cambios</Button>
-        </DialogActions>
-      </Dialog>
+      {/* Aviso de eliminado con Deshacer */}
+      <Snackbar
+        open={!!eliminado}
+        autoHideDuration={6000}
+        onClose={(_, motivo) => { if (motivo !== 'clickaway') setEliminado(null); }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        message={`Eliminado: ${eliminado?.ejercicio?.nombre || ''}`}
+        action={<Button onClick={deshacerEliminar} sx={{ color: '#4ade80', fontWeight: 800 }}>Deshacer</Button>}
+      />
 
       <Snackbar
         open={snackbar.open}

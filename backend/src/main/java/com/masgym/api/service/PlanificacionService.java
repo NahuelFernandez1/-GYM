@@ -12,7 +12,5 @@ public interface PlanificacionService {
     Planificacion guardar(Planificacion planificacion);
     Optional<Planificacion> actualizarDatosBasicos(Long id, Planificacion cambios);
     Planificacion copiar(Long planificacionId);
-    Planificacion agregarSemana(Long planificacionId);
-    Planificacion eliminarSemana(Long planificacionId, int numeroSemana);
     void eliminar(Long id);
 }

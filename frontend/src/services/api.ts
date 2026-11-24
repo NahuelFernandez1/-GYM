@@ -98,11 +98,6 @@ export const planificacionService = {
   copiar: (id: number | string) => api.post<Planificacion>(`/planificaciones/${id}/copiar`),
   delete: (id: number | string) => api.delete(`/planificaciones/${id}`),
   enviar: (id: number | string) => api.post(`/planificaciones/${id}/enviar`),
-  // Agrega una semana al final copiando los valores de la ultima.
-  agregarSemana: (id: number | string) => api.post<Planificacion>(`/planificaciones/${id}/semanas`),
-  // Saca una semana; las siguientes se corren un lugar.
-  eliminarSemana: (id: number | string, numeroSemana: number) =>
-    api.delete<Planificacion>(`/planificaciones/${id}/semanas/${numeroSemana}`),
 };
 
 export const diaPlanService = {

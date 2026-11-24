@@ -39,8 +39,10 @@ public class Planificacion {
     private LocalDateTime enviadoAt;
 
     // Semanas del bloque (1 a 5). Cada ejercicio tiene una prescripcion por semana.
+    // Sin valor inicial a proposito: en un PUT, null significa "no cambiar".
+    // Al crear sin dato arranca en 5 (ver onCreate).
     @Column(nullable = false)
-    private Integer cantidadSemanas = 5;
+    private Integer cantidadSemanas;
 
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -48,6 +50,7 @@ public class Planificacion {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (cantidadSemanas == null) cantidadSemanas = 5;
     }
 
     @JsonIgnore

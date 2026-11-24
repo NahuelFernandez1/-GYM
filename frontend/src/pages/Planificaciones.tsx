@@ -33,6 +33,7 @@ const planInicial: Planificacion = {
   fechaInicio: '',
   fechaFin: '',
   estado: 'BORRADOR',
+  cantidadSemanas: 5,
 };
 
 const Planificaciones: React.FC = () => {
@@ -44,6 +45,8 @@ const Planificaciones: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [planActual, setPlanActual] = useState<Planificacion>(planInicial);
   const [editando, setEditando] = useState(false);
+  // Semanas que tenia el plan al abrir la edicion: si se bajan, se pide confirmacion.
+  const [semanasOriginales, setSemanasOriginales] = useState(5);
   const [planAEliminar, setPlanAEliminar] = useState<Planificacion | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; mensaje: string; tipo: 'success' | 'error' }>({
     open: false,
@@ -72,11 +75,17 @@ const Planificaciones: React.FC = () => {
 
   const abrirEditar = (plan: Planificacion) => {
     setPlanActual(plan);
+    setSemanasOriginales(plan.cantidadSemanas || 5);
     setEditando(true);
     setDialogOpen(true);
   };
 
   const guardar = () => {
+    const nuevas = planActual.cantidadSemanas || 5;
+    if (editando && nuevas < semanasOriginales && !window.confirm(
+      `Vas a pasar de ${semanasOriginales} a ${nuevas} semanas. Se borran series, reps, RIR y notas de ` +
+      `${nuevas + 1 === semanasOriginales ? `la semana ${semanasOriginales}` : `las semanas ${nuevas + 1} a ${semanasOriginales}`}. ¿Continuar?`
+    )) return;
     const operacion = editando && planActual.id
       ? planificacionService.update(planActual.id, planActual)
       : planificacionService.create(planActual);
@@ -434,6 +443,18 @@ const Planificaciones: React.FC = () => {
                 />
               </Box>
             </Box>
+
+            <TextField
+              fullWidth
+              select
+              size="small"
+              label="Cantidad de semanas"
+              helperText={editando ? 'Si subís, las semanas nuevas copian la última.' : 'Cuántas semanas dura el bloque.'}
+              value={planActual.cantidadSemanas || 5}
+              onChange={(e) => setPlanActual({ ...planActual, cantidadSemanas: Number(e.target.value) })}
+            >
+              {[1, 2, 3, 4, 5].map(n => <MenuItem key={n} value={n}>{n} {n === 1 ? 'semana' : 'semanas'}</MenuItem>)}
+            </TextField>
 
             <TextField
               fullWidth
