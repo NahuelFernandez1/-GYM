@@ -7,5 +7,5 @@ import java.util.List;
 
 @Repository
 public interface DiaPlanRepository extends JpaRepository<DiaPlan, Long> {
-    List<DiaPlan> findBySemanaPlanId(Long semanaPlanId);
+    List<DiaPlan> findByPlanificacionIdOrderByIdAsc(Long planificacionId);
 }

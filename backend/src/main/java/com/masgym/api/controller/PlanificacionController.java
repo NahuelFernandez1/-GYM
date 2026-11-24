@@ -64,6 +64,18 @@ public class PlanificacionController {
         return ResponseEntity.ok(planificacionService.copiar(id));
     }
 
+    // Semanas del bloque (1 a 5): los dias y ejercicios son los mismos en todas,
+    // cambia solo la prescripcion de cada semana.
+    @PostMapping("/{id}/semanas")
+    public ResponseEntity<Planificacion> agregarSemana(@PathVariable Long id) {
+        return ResponseEntity.ok(planificacionService.agregarSemana(id));
+    }
+
+    @DeleteMapping("/{id}/semanas/{numeroSemana}")
+    public ResponseEntity<Planificacion> eliminarSemana(@PathVariable Long id, @PathVariable int numeroSemana) {
+        return ResponseEntity.ok(planificacionService.eliminarSemana(id, numeroSemana));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         planificacionService.eliminar(id);

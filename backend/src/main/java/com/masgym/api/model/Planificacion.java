@@ -38,6 +38,10 @@ public class Planificacion {
 
     private LocalDateTime enviadoAt;
 
+    // Semanas del bloque (1 a 5). Cada ejercicio tiene una prescripcion por semana.
+    @Column(nullable = false)
+    private Integer cantidadSemanas = 5;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
@@ -48,7 +52,8 @@ public class Planificacion {
 
     @JsonIgnore
     @OneToMany(mappedBy = "planificacion", cascade = CascadeType.ALL, orphanRemoval = true)
-    private java.util.List<SemanaPlan> semanas;
+    @OrderBy("id ASC")
+    private java.util.List<DiaPlan> dias;
 
     @JsonIgnore
     @OneToMany(mappedBy = "planificacion", cascade = CascadeType.ALL, orphanRemoval = true)

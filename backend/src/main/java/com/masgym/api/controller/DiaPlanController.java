@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
+// Los dias son del plan y valen para todas sus semanas.
 @RestController
 @RequestMapping("/api/dias")
 @RequiredArgsConstructor
@@ -14,10 +15,10 @@ public class DiaPlanController {
 
     private final DiaPlanRepository diaPlanRepository;
 
-    @GetMapping("/semana/{semanaId}")
-    public ResponseEntity<List<DiaPlan>> obtenerPorSemana(@PathVariable Long semanaId) {
+    @GetMapping("/planificacion/{planId}")
+    public ResponseEntity<List<DiaPlan>> obtenerPorPlanificacion(@PathVariable Long planId) {
         return ResponseEntity.ok(
-                diaPlanRepository.findBySemanaPlanId(semanaId)
+                diaPlanRepository.findByPlanificacionIdOrderByIdAsc(planId)
         );
     }
 

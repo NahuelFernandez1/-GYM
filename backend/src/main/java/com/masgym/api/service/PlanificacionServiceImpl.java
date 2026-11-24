@@ -3,8 +3,10 @@ package com.masgym.api.service;
 import com.masgym.api.model.*;
 import com.masgym.api.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,10 +14,13 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PlanificacionServiceImpl implements PlanificacionService {
 
+    // Tambien esta como CHECK en la base (ck_planificaciones_cantidad_semanas).
+    private static final int MAX_SEMANAS = 5;
+
     private final PlanificacionRepository planificacionRepository;
-    private final SemanaPlanRepository semanaPlanRepository;
     private final DiaPlanRepository diaPlanRepository;
     private final EjercicioPlanificadoRepository ejercicioPlanificadoRepository;
+    private final PrescripcionSemanalRepository prescripcionSemanalRepository;
 
     @Override
     public List<Planificacion> obtenerTodas() {
@@ -45,10 +50,11 @@ public class PlanificacionServiceImpl implements PlanificacionService {
     /**
      * Actualiza solo los campos simples del plan (nombre, alumno, fechas, estado).
      * A proposito NO usa guardar(planificacion) con el objeto que manda el cliente:
-     * como "semanas"/"ejerciciosFijos" tienen @JsonIgnore, nunca viajan en el payload,
-     * y si se guardara ese objeto tal cual, Hibernate interpretaria "sin semanas" y
-     * las borraria en cascada (cascade=ALL + orphanRemoval=true). Por eso se carga la
+     * como "dias"/"ejerciciosFijos" tienen @JsonIgnore, nunca viajan en el payload,
+     * y si se guardara ese objeto tal cual, Hibernate interpretaria "sin dias" y
+     * los borraria en cascada (cascade=ALL + orphanRemoval=true). Por eso se carga la
      * entidad persistida y se pisan solo los campos que el form de edicion expone.
+     * La cantidad de semanas se cambia con agregarSemana/eliminarSemana.
      */
     @Override
     @Transactional
@@ -69,7 +75,6 @@ public class PlanificacionServiceImpl implements PlanificacionService {
         Planificacion original = planificacionRepository.findById(planificacionId)
                 .orElseThrow(() -> new RuntimeException("Planificacion no encontrada"));
 
-        // Copia la planificacion
         Planificacion copia = new Planificacion();
         copia.setAlumno(original.getAlumno());
         copia.setCreadoPor(original.getCreadoPor());
@@ -77,48 +82,83 @@ public class PlanificacionServiceImpl implements PlanificacionService {
         copia.setFechaInicio(original.getFechaInicio());
         copia.setFechaFin(original.getFechaFin());
         copia.setEstado("BORRADOR");
+        copia.setCantidadSemanas(original.getCantidadSemanas());
         Planificacion copiaPlan = planificacionRepository.save(copia);
 
-        // Copia las semanas
-        List<SemanaPlan> semanas = semanaPlanRepository
-                .findByPlanificacionIdOrderByNumeroSemanaAsc(planificacionId);
+        for (DiaPlan dia : diaPlanRepository.findByPlanificacionIdOrderByIdAsc(planificacionId)) {
+            DiaPlan nuevoDia = new DiaPlan();
+            nuevoDia.setPlanificacion(copiaPlan);
+            nuevoDia.setDiaSemana(dia.getDiaSemana());
+            nuevoDia.setNotas(dia.getNotas());
+            DiaPlan diaGuardado = diaPlanRepository.save(nuevoDia);
 
-        for (SemanaPlan semana : semanas) {
-            SemanaPlan nuevaSemana = new SemanaPlan();
-            nuevaSemana.setPlanificacion(copiaPlan);
-            nuevaSemana.setNumeroSemana(semana.getNumeroSemana());
-            nuevaSemana.setNotas(semana.getNotas());
-            SemanaPlan semanaGuardada = semanaPlanRepository.save(nuevaSemana);
-
-            // Copia los dias
-            List<DiaPlan> dias = diaPlanRepository
-                    .findBySemanaPlanId(semana.getId());
-
-            for (DiaPlan dia : dias) {
-                DiaPlan nuevoDia = new DiaPlan();
-                nuevoDia.setSemanaPlan(semanaGuardada);
-                nuevoDia.setDiaSemana(dia.getDiaSemana());
-                nuevoDia.setNotas(dia.getNotas());
-                DiaPlan diaGuardado = diaPlanRepository.save(nuevoDia);
-
-                // Copia los ejercicios
-                List<EjercicioPlanificado> ejercicios = ejercicioPlanificadoRepository
-                        .findByDiaPlanIdOrderByOrdenAsc(dia.getId());
-
-                for (EjercicioPlanificado ejercicio : ejercicios) {
-                    EjercicioPlanificado nuevoEjercicio = new EjercicioPlanificado();
-                    nuevoEjercicio.setDiaPlan(diaGuardado);
-                    nuevoEjercicio.setEjercicio(ejercicio.getEjercicio());
-                    nuevoEjercicio.setOrden(ejercicio.getOrden());
-                    nuevoEjercicio.setSeries(ejercicio.getSeries());
-                    nuevoEjercicio.setRepeticiones(ejercicio.getRepeticiones());
-                    nuevoEjercicio.setPesoKg(ejercicio.getPesoKg());
-                    nuevoEjercicio.setNotas(ejercicio.getNotas());
-                    ejercicioPlanificadoRepository.save(nuevoEjercicio);
+            for (EjercicioPlanificado ejercicio : ejercicioPlanificadoRepository
+                    .findByDiaPlanIdOrderByOrdenAsc(dia.getId())) {
+                EjercicioPlanificado nuevoEjercicio = new EjercicioPlanificado();
+                nuevoEjercicio.setDiaPlan(diaGuardado);
+                nuevoEjercicio.setEjercicio(ejercicio.getEjercicio());
+                nuevoEjercicio.setOrden(ejercicio.getOrden());
+                nuevoEjercicio.setCircuito(ejercicio.getCircuito());
+                for (PrescripcionSemanal p : ejercicio.getPrescripciones()) {
+                    nuevoEjercicio.getPrescripciones()
+                            .add(PrescripcionSemanal.copiaDe(p, nuevoEjercicio, p.getNumeroSemana()));
                 }
+                ejercicioPlanificadoRepository.save(nuevoEjercicio);
             }
         }
         return copiaPlan;
+    }
+
+    /** Agrega una semana al final, arrancando con los mismos valores que la ultima. */
+    @Override
+    @Transactional
+    public Planificacion agregarSemana(Long planificacionId) {
+        Planificacion plan = buscar(planificacionId);
+        int actual = plan.getCantidadSemanas();
+        if (actual >= MAX_SEMANAS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El plan ya tiene el máximo de " + MAX_SEMANAS + " semanas.");
+        }
+        int nueva = actual + 1;
+        for (DiaPlan dia : plan.getDias()) {
+            for (EjercicioPlanificado ep : dia.getEjercicios()) {
+                PrescripcionSemanal ultima = ep.getPrescripciones().stream()
+                        .filter(p -> p.getNumeroSemana() == actual)
+                        .findFirst()
+                        .orElse(null);
+                ep.getPrescripciones().add(PrescripcionSemanal.copiaDe(ultima, ep, nueva));
+            }
+        }
+        plan.setCantidadSemanas(nueva);
+        return planificacionRepository.save(plan);
+    }
+
+    /** Saca una semana y corre las siguientes un lugar (si se borra la 2, la 3 pasa a ser la 2). */
+    @Override
+    @Transactional
+    public Planificacion eliminarSemana(Long planificacionId, int numeroSemana) {
+        int actual = buscar(planificacionId).getCantidadSemanas();
+        if (actual <= 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El plan tiene que tener al menos una semana.");
+        }
+        if (numeroSemana < 1 || numeroSemana > actual) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La semana " + numeroSemana + " no existe en este plan.");
+        }
+        prescripcionSemanalRepository.borrarSemana(planificacionId, numeroSemana);
+        prescripcionSemanalRepository.correrSemanasANegativo(planificacionId, numeroSemana);
+        prescripcionSemanalRepository.volverSemanasAPositivo(planificacionId);
+
+        // Las consultas de arriba limpian el contexto de JPA: se vuelve a cargar el plan.
+        Planificacion plan = buscar(planificacionId);
+        plan.setCantidadSemanas(actual - 1);
+        return planificacionRepository.save(plan);
+    }
+
+    private Planificacion buscar(Long id) {
+        return planificacionRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Planificación no encontrada."));
     }
 
     @Override

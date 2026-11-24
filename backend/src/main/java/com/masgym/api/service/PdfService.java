@@ -7,6 +7,7 @@ import com.masgym.api.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.Period;
@@ -20,7 +21,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PdfService {
 
-    private final SemanaPlanRepository semanaPlanRepository;
     private final DiaPlanRepository diaPlanRepository;
     private final EjercicioPlanificadoRepository ejercicioPlanificadoRepository;
     private final EjercicioFijoPlanRepository ejercicioFijoPlanRepository;
@@ -38,6 +38,8 @@ public class PdfService {
     private static final BaseColor VERDE_CLARO = new BaseColor(232, 245, 233);
     private static final BaseColor GRIS = new BaseColor(245, 245, 245);
 
+    // Transaccional porque recorre las prescripciones de cada ejercicio (carga lazy).
+    @Transactional(readOnly = true)
     public byte[] generarPdf(Planificacion plan) throws Exception {
         Document document = new Document(PageSize.A4, 24, 24, 16, 16);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -130,9 +132,6 @@ public class PdfService {
 
         // Bloque de fuerza: agrupado por Día -> Circuito -> Ejercicio,
         // con la progresión de cada semana en una sola fila (REP/RIR: 7(5)-8(4)-...)
-        List<SemanaPlan> semanas = semanaPlanRepository
-                .findByPlanificacionIdOrderByNumeroSemanaAsc(plan.getId());
-
         PdfPTable bloqueFuerzaTitulo = new PdfPTable(1);
         bloqueFuerzaTitulo.setWidthPercentage(100);
         PdfPCell bloqueFuerzaCell = new PdfPCell(new Phrase("BLOQUE DE FUERZA", fuenteBlanco));
@@ -145,31 +144,34 @@ public class PdfService {
         // dia -> orden -> fila (agrupa la misma fila a través de las semanas)
         LinkedHashMap<String, LinkedHashMap<Integer, FilaFuerza>> porDia = new LinkedHashMap<>();
 
-        for (int semanaIdx = 0; semanaIdx < semanas.size(); semanaIdx++) {
-            SemanaPlan semana = semanas.get(semanaIdx);
-            List<DiaPlan> dias = diaPlanRepository.findBySemanaPlanId(semana.getId());
-            final int idx = semanaIdx;
-            final int totalSemanas = semanas.size();
+        // Circuito, nombre, notas y series salen de la semana 1; REP/RIR de cada semana.
+        int totalSemanas = plan.getCantidadSemanas();
+        for (DiaPlan dia : diaPlanRepository.findByPlanificacionIdOrderByIdAsc(plan.getId())) {
+            LinkedHashMap<Integer, FilaFuerza> filasDia =
+                    porDia.computeIfAbsent(dia.getDiaSemana(), d -> new LinkedHashMap<>());
 
-            for (DiaPlan dia : dias) {
-                LinkedHashMap<Integer, FilaFuerza> filasDia =
-                        porDia.computeIfAbsent(dia.getDiaSemana(), d -> new LinkedHashMap<>());
+            List<EjercicioPlanificado> ejercicios = ejercicioPlanificadoRepository
+                    .findByDiaPlanIdOrderByOrdenAsc(dia.getId());
 
-                List<EjercicioPlanificado> ejercicios = ejercicioPlanificadoRepository
-                        .findByDiaPlanIdOrderByOrdenAsc(dia.getId());
-
-                for (EjercicioPlanificado ep : ejercicios) {
-                    FilaFuerza fila = filasDia.computeIfAbsent(ep.getOrden(), o -> {
-                        FilaFuerza f = new FilaFuerza();
-                        f.circuito = ep.getCircuito();
-                        f.nombreEjercicio = ep.getEjercicio().getNombre();
-                        f.notas = ep.getNotas();
-                        f.series = ep.getSeries();
-                        f.valoresPorSemana = new ArrayList<>(Collections.nCopies(totalSemanas, "-"));
-                        return f;
-                    });
-                    String rir = ep.getRir() != null && !ep.getRir().isBlank() ? "(" + ep.getRir() + ")" : "";
-                    fila.valoresPorSemana.set(idx, ep.getRepeticiones() + rir);
+            for (EjercicioPlanificado ep : ejercicios) {
+                PrescripcionSemanal semana1 = ep.getPrescripciones().stream()
+                        .filter(p -> p.getNumeroSemana() == 1)
+                        .findFirst()
+                        .orElse(null);
+                FilaFuerza fila = filasDia.computeIfAbsent(ep.getOrden(), o -> {
+                    FilaFuerza f = new FilaFuerza();
+                    f.circuito = ep.getCircuito();
+                    f.nombreEjercicio = ep.getEjercicio().getNombre();
+                    f.notas = semana1 != null ? semana1.getNotasPeso() : null;
+                    f.series = semana1 != null ? semana1.getSeries() : null;
+                    f.valoresPorSemana = new ArrayList<>(Collections.nCopies(totalSemanas, "-"));
+                    return f;
+                });
+                for (PrescripcionSemanal p : ep.getPrescripciones()) {
+                    int idx = p.getNumeroSemana() - 1;
+                    if (idx < 0 || idx >= totalSemanas || p.getReps() == null || p.getReps().isBlank()) continue;
+                    String rir = p.getRir() != null && !p.getRir().isBlank() ? "(" + p.getRir() + ")" : "";
+                    fila.valoresPorSemana.set(idx, p.getReps() + rir);
                 }
             }
         }

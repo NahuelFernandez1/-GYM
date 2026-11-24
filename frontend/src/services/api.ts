@@ -1,7 +1,7 @@
 import axios from 'axios';
 import {
   Alumno, EstadoAlumno, Pago, ResumenPagos, Ejercicio,
-  PatronMovimiento, Planificacion, SemanaPlan, DiaPlan,
+  PatronMovimiento, Planificacion, DiaPlan,
   EjercicioPlanificado, EjercicioFijoPlan, DashboardKPIs, Usuario, AlumnoPorVencer
 } from '../types';
 
@@ -98,18 +98,15 @@ export const planificacionService = {
   copiar: (id: number | string) => api.post<Planificacion>(`/planificaciones/${id}/copiar`),
   delete: (id: number | string) => api.delete(`/planificaciones/${id}`),
   enviar: (id: number | string) => api.post(`/planificaciones/${id}/enviar`),
-};
-
-export const semanaPlanService = {
-  getByPlanificacion: (planId: number | string) => api.get<SemanaPlan[]>(`/semanas/planificacion/${planId}`),
-  create: (semana: Partial<SemanaPlan>) => api.post<SemanaPlan>('/semanas', semana),
-  update: (id: number | string, semana: Partial<SemanaPlan>) => api.put<SemanaPlan>(`/semanas/${id}`, semana),
-  copiar: (id: number | string) => api.post<SemanaPlan>(`/semanas/${id}/copiar`),
-  delete: (id: number | string) => api.delete(`/semanas/${id}`),
+  // Agrega una semana al final copiando los valores de la ultima.
+  agregarSemana: (id: number | string) => api.post<Planificacion>(`/planificaciones/${id}/semanas`),
+  // Saca una semana; las siguientes se corren un lugar.
+  eliminarSemana: (id: number | string, numeroSemana: number) =>
+    api.delete<Planificacion>(`/planificaciones/${id}/semanas/${numeroSemana}`),
 };
 
 export const diaPlanService = {
-  getBySemana: (semanaId: number | string) => api.get<DiaPlan[]>(`/dias/semana/${semanaId}`),
+  getByPlanificacion: (planId: number | string) => api.get<DiaPlan[]>(`/dias/planificacion/${planId}`),
   create: (dia: Partial<DiaPlan>) => api.post<DiaPlan>('/dias', dia),
   delete: (id: number | string) => api.delete(`/dias/${id}`),
 };

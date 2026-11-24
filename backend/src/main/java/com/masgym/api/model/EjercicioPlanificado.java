@@ -2,8 +2,14 @@ package com.masgym.api.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * Lo fijo de un ejercicio dentro de un dia (que ejercicio, circuito y orden).
+ * Lo que cambia semana a semana (series, reps, RIR, notas/peso) esta en
+ * {@link PrescripcionSemanal}: una por cada semana del plan.
+ */
 @Data
 @Entity
 @Table(name = "ejercicios_planificados")
@@ -26,15 +32,7 @@ public class EjercicioPlanificado {
 
     private String circuito;
 
-    @Column(nullable = false)
-    private Integer series;
-
-    @Column(nullable = false)
-    private Integer repeticiones;
-
-    private BigDecimal pesoKg;
-
-    private String notas;
-
-    private String rir;
+    @OneToMany(mappedBy = "ejercicioPlanificado", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("numeroSemana ASC")
+    private List<PrescripcionSemanal> prescripciones = new ArrayList<>();
 }

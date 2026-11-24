@@ -72,32 +72,33 @@ export interface Planificacion {
   fechaFin?: string;
   estado: EstadoPlanificacion;
   enviadoAt?: string | null;
+  cantidadSemanas?: number;
 }
 
-export interface SemanaPlan {
-  id?: number;
-  planificacion?: { id: number };
-  numeroSemana: number | string;
-  notas?: string;
-}
-
+// Los dias y ejercicios son del plan y valen para todas sus semanas.
 export interface DiaPlan {
   id?: number;
-  semanaPlan?: { id: number };
+  planificacion?: { id: number };
   diaSemana: string;
-  orden?: number;
+}
+
+// Lo que se pide de un ejercicio en una semana puntual (1..cantidadSemanas).
+export interface PrescripcionSemanal {
+  id?: number;
+  numeroSemana: number;
+  series?: number | string | null;
+  reps?: string | null;
+  rir?: string | null;
+  notasPeso?: string | null;
 }
 
 export interface EjercicioPlanificado {
   id?: number;
   diaPlan?: { id: number };
   ejercicio?: Ejercicio;
-  circuito?: string;
-  series?: number | string;
-  repeticiones?: number | string;
-  rir?: string;
-  notas?: string;
+  circuito?: string | null;
   orden?: number;
+  prescripciones?: PrescripcionSemanal[];
 }
 
 export type TipoBloqueFijo = 'MOVILIDAD' | 'ACTIVACION';

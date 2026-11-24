@@ -11,6 +11,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -48,6 +49,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "No tenés permiso para realizar esta acción."));
+    }
+
+    // Errores de validacion que lanzan los servicios a proposito (400, 404...):
+    // el mensaje es para el usuario, y no hace falta avisar al admin.
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, String>> handleResponseStatus(ResponseStatusException ex) {
+        String mensaje = ex.getReason() != null ? ex.getReason() : "No se pudo completar la acción.";
+        return ResponseEntity.status(ex.getStatusCode()).body(Map.of("error", mensaje));
     }
 
     // Cualquier error no manejado por los handlers de arriba: se loguea, se le

@@ -14,9 +14,10 @@ public class DiaPlan {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Los dias cuelgan directo del plan; las semanas viven en PrescripcionSemanal.
     @ManyToOne
-    @JoinColumn(name = "semana_plan_id", nullable = false)
-    private SemanaPlan semanaPlan;
+    @JoinColumn(name = "planificacion_id", nullable = false)
+    private Planificacion planificacion;
 
     @Column(nullable = false)
     private String diaSemana;
@@ -25,5 +26,6 @@ public class DiaPlan {
 
     @JsonIgnore
     @OneToMany(mappedBy = "diaPlan", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orden ASC")
     private List<EjercicioPlanificado> ejercicios;
 }
