@@ -1,6 +1,7 @@
 package com.masgym.api.service;
 
 import com.masgym.api.model.*;
+import com.masgym.api.util.Fechas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -39,7 +40,7 @@ public class EmailService {
 
     private String generarHtml(Planificacion plan) {
         Alumno alumno = plan.getAlumno();
-        String fechaFin = plan.getFechaFin() != null ? plan.getFechaFin().toString() : "sin fecha de fin";
+        String fechaFin = Fechas.formatear(plan.getFechaFin(), "sin fecha de fin");
 
         String plantilla = """
             <!DOCTYPE html>
@@ -110,7 +111,7 @@ public class EmailService {
         return plantilla
                 .replace("{{LOGO_URL}}", "cid:logoEmail")
                 .replace("{{NOMBRE_ALUMNO}}", alumno.getNombre())
-                .replace("{{FECHA_INICIO}}", String.valueOf(plan.getFechaInicio()))
+                .replace("{{FECHA_INICIO}}", Fechas.formatear(plan.getFechaInicio(), "-"))
                 .replace("{{FECHA_FIN}}", fechaFin);
     }
 }

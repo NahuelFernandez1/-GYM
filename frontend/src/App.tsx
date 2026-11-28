@@ -13,6 +13,7 @@ import Ejercicios from './pages/Ejercicios';
 import Planificaciones from './pages/Planificaciones';
 import DetallePlanificacion from './pages/DetallePlanificacion';
 import Usuarios from './pages/Usuarios';
+import DialogosGlobales from './components/DialogosGlobales';
 
 const theme = createTheme({
   palette: {
@@ -203,6 +204,7 @@ function App() {
       <CssBaseline />
       <Router>
         <AuthProvider>
+          <DialogosGlobales />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route

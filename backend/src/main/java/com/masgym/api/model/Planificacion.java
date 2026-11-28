@@ -38,7 +38,7 @@ public class Planificacion {
 
     private LocalDateTime enviadoAt;
 
-    // Semanas del bloque (1 a 5). Cada ejercicio tiene una prescripcion por semana.
+    // Semanas del bloque (1 a 7, por defecto 5). Cada ejercicio tiene una prescripcion por semana.
     // Sin valor inicial a proposito: en un PUT, null significa "no cambiar".
     // Al crear sin dato arranca en 5 (ver onCreate).
     @Column(nullable = false)

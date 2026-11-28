@@ -4,6 +4,7 @@ import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import com.masgym.api.model.*;
 import com.masgym.api.repository.*;
+import com.masgym.api.util.Fechas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,9 @@ public class PdfService {
     private static final BaseColor VERDE_MEDIO = new BaseColor(46, 125, 50);
     private static final BaseColor VERDE_CLARO = new BaseColor(232, 245, 233);
     private static final BaseColor GRIS = new BaseColor(245, 245, 245);
+    // Resaltado de las notas: el verde de los titulos de dia, un poco mas marcado para
+    // que se note impreso y sobre las filas grises.
+    private static final BaseColor VERDE_RESALTADO = new BaseColor(200, 230, 201);
 
     // Transaccional porque recorre las prescripciones de cada ejercicio (carga lazy).
     @Transactional(readOnly = true)
@@ -52,6 +56,7 @@ public class PdfService {
         Font fuenteBold = new Font(Font.FontFamily.HELVETICA, 8.5f, Font.BOLD, BaseColor.DARK_GRAY);
         Font fuenteBlanco = new Font(Font.FontFamily.HELVETICA, 8.5f, Font.BOLD, BaseColor.WHITE);
         Font fuenteVerde = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, VERDE_OSCURO);
+        Font fuenteCircuito = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.DARK_GRAY);
 
         // Header: logo + subtítulo
         PdfPTable header = new PdfPTable(2);
@@ -117,8 +122,8 @@ public class PdfService {
         Paragraph vigenciaInfo = new Paragraph();
         vigenciaInfo.add(new Chunk("Entrenador: MASGYM\n", fuenteBold));
         vigenciaInfo.add(new Chunk("Plan: " + plan.getNombre() + "\n", fuenteNormal));
-        vigenciaInfo.add(new Chunk("Vigencia: " + plan.getFechaInicio() + " — " +
-                (plan.getFechaFin() != null ? plan.getFechaFin() : "Sin fecha"), fuenteNormal));
+        vigenciaInfo.add(new Chunk("Vigencia: " + Fechas.formatear(plan.getFechaInicio(), "-") + " — " +
+                Fechas.formatear(plan.getFechaFin(), "Sin fecha"), fuenteNormal));
         vigenciaCell.addElement(vigenciaInfo);
         datosTable.addCell(vigenciaCell);
         document.add(datosTable);
@@ -202,9 +207,9 @@ public class PdfService {
                 String tituloCircuito = circuitoEntry.getKey() +
                         (seriesCircuito != null ? " (" + seriesCircuito + " series)" : "");
 
-                Paragraph pCircuito = new Paragraph(tituloCircuito, fuenteBold);
+                Paragraph pCircuito = new Paragraph(tituloCircuito, fuenteCircuito);
                 pCircuito.setSpacingBefore(2);
-                pCircuito.setSpacingAfter(1);
+                pCircuito.setSpacingAfter(3);
                 document.add(pCircuito);
 
                 PdfPTable tabla = new PdfPTable(2);
@@ -215,16 +220,20 @@ public class PdfService {
                 for (FilaFuerza fila : filas) {
                     BaseColor bgColor = filaAlterna ? GRIS : BaseColor.WHITE;
 
-                    String textoEjercicio = fila.nombreEjercicio;
+                    // Las notas van resaltadas en verde, como el titulo del dia.
+                    Phrase textoEjercicio = new Phrase(fila.nombreEjercicio, fuenteBold);
                     if (fila.notas != null && !fila.notas.isBlank()) {
-                        textoEjercicio += " (" + fila.notas.trim() + ")";
+                        textoEjercicio.add(new Chunk(" ", fuenteBold));
+                        Chunk notas = new Chunk("(" + fila.notas.trim() + ")", fuenteBold);
+                        notas.setBackground(VERDE_RESALTADO, 1f, 1f, 1f, 1.5f);
+                        textoEjercicio.add(notas);
                     }
-                    PdfPCell c1 = new PdfPCell(new Phrase(textoEjercicio, fuenteBold));
+                    PdfPCell c1 = new PdfPCell(textoEjercicio);
                     c1.setBackgroundColor(bgColor); c1.setPadding(3);
                     tabla.addCell(c1);
 
                     String valores = String.join("-", fila.valoresPorSemana);
-                    PdfPCell c2 = new PdfPCell(new Phrase("REP/RIR: " + valores, fuenteNormal));
+                    PdfPCell c2 = new PdfPCell(new Phrase("REP/RIR: " + valores, fuenteBold));
                     c2.setBackgroundColor(bgColor); c2.setPadding(3);
                     tabla.addCell(c2);
 

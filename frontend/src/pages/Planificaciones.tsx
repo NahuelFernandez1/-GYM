@@ -20,6 +20,8 @@ import { useNavigate } from 'react-router-dom';
 import Autocomplete from '@mui/material/Autocomplete';
 import { Planificacion, Alumno, EstadoPlanificacion } from '../types';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { formatearFecha } from '../utils/fechas';
+import { confirmar } from '../components/DialogosGlobales';
 
 const estadoStyles: Record<EstadoPlanificacion, { bg: string; text: string; border: string; label: string }> = {
   BORRADOR: { bg: '#f1f5f9', text: '#64748b', border: '#e2e8f0', label: 'Borrador' },
@@ -80,12 +82,15 @@ const Planificaciones: React.FC = () => {
     setDialogOpen(true);
   };
 
-  const guardar = () => {
+  const guardar = async () => {
     const nuevas = planActual.cantidadSemanas || 5;
-    if (editando && nuevas < semanasOriginales && !window.confirm(
-      `Vas a pasar de ${semanasOriginales} a ${nuevas} semanas. Se borran series, reps, RIR y notas de ` +
-      `${nuevas + 1 === semanasOriginales ? `la semana ${semanasOriginales}` : `las semanas ${nuevas + 1} a ${semanasOriginales}`}. ¿Continuar?`
-    )) return;
+    if (editando && nuevas < semanasOriginales && !(await confirmar({
+      titulo: 'Bajar cantidad de semanas',
+      mensaje: `Vas a pasar de ${semanasOriginales} a ${nuevas} semanas. Se borran series, reps, RIR y notas de ` +
+        `${nuevas + 1 === semanasOriginales ? `la semana ${semanasOriginales}` : `las semanas ${nuevas + 1} a ${semanasOriginales}`}. ¿Continuar?`,
+      textoConfirmar: 'Continuar',
+      colorConfirmar: 'warning',
+    }))) return;
     const operacion = editando && planActual.id
       ? planificacionService.update(planActual.id, planActual)
       : planificacionService.create(planActual);
@@ -105,8 +110,8 @@ const Planificaciones: React.FC = () => {
     if (!id) return;
     planificacionService.copiar(id).then(() => {
       cargarPlanes();
-      alert('✅ Planificación duplicada exitosamente');
-    }).catch(() => alert('❌ No se pudo duplicar la planificación.'));
+      setSnackbar({ open: true, mensaje: 'Planificación duplicada correctamente.', tipo: 'success' });
+    }).catch(() => setSnackbar({ open: true, mensaje: 'No se pudo duplicar la planificación.', tipo: 'error' }));
   };
 
   const confirmarEliminar = () => {
@@ -297,7 +302,7 @@ const Planificaciones: React.FC = () => {
                   </TableCell>
 
                   <TableCell sx={{ color: '#475569', fontWeight: 500, px: 3, py: 2 }}>
-                    {plan.fechaInicio || '—'} {plan.fechaFin ? `al ${plan.fechaFin}` : ''}
+                    {formatearFecha(plan.fechaInicio)} {plan.fechaFin ? `al ${formatearFecha(plan.fechaFin)}` : ''}
                   </TableCell>
 
                   <TableCell sx={{ px: 3, py: 2 }}>
@@ -453,7 +458,7 @@ const Planificaciones: React.FC = () => {
               value={planActual.cantidadSemanas || 5}
               onChange={(e) => setPlanActual({ ...planActual, cantidadSemanas: Number(e.target.value) })}
             >
-              {[1, 2, 3, 4, 5].map(n => <MenuItem key={n} value={n}>{n} {n === 1 ? 'semana' : 'semanas'}</MenuItem>)}
+              {[1, 2, 3, 4, 5, 6, 7].map(n => <MenuItem key={n} value={n}>{n} {n === 1 ? 'semana' : 'semanas'}</MenuItem>)}
             </TextField>
 
             <TextField

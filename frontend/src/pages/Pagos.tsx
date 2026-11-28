@@ -20,6 +20,7 @@ import { pagoService, alumnoService } from '../services/api';
 import { Pago, Alumno, EstadoPago, MetodoPago, ResumenPagos } from '../types';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { formatearFecha } from '../utils/fechas';
 
 const estadoStyles: Record<EstadoPago, { bg: string; text: string; border: string; label: string }> = {
   PAGADO: { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', label: 'Pagado' },
@@ -451,11 +452,11 @@ const Pagos: React.FC = () => {
                   </TableCell>
 
                   <TableCell sx={{ color: '#475569', fontWeight: 500, px: 3, py: 2 }}>
-                    {pago.fechaPago || '—'}
+                    {formatearFecha(pago.fechaPago)}
                   </TableCell>
 
                   <TableCell sx={{ color: '#475569', fontWeight: 500, px: 3, py: 2 }}>
-                    {pago.fechaVencimiento || '—'}
+                    {formatearFecha(pago.fechaVencimiento)}
                   </TableCell>
 
                   <TableCell sx={{ px: 3, py: 2 }}>

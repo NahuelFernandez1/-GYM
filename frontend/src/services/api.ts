@@ -2,7 +2,7 @@ import axios from 'axios';
 import {
   Alumno, EstadoAlumno, Pago, ResumenPagos, Ejercicio,
   PatronMovimiento, Planificacion, DiaPlan,
-  EjercicioPlanificado, EjercicioFijoPlan, DashboardKPIs, Usuario, AlumnoPorVencer
+  EjercicioPlanificado, EjercicioFijoPlan, DashboardKPIs, Usuario, AlumnoPorVencer, ContenidoPlan
 } from '../types';
 
 // En build de producción hay que setear REACT_APP_API_URL (CRA lo incrusta
@@ -98,6 +98,8 @@ export const planificacionService = {
   copiar: (id: number | string) => api.post<Planificacion>(`/planificaciones/${id}/copiar`),
   delete: (id: number | string) => api.delete(`/planificaciones/${id}`),
   enviar: (id: number | string) => api.post(`/planificaciones/${id}/enviar`),
+  pdf: (id: number | string) => api.get<Blob>(`/planificaciones/${id}/pdf`, { responseType: 'blob' }),
+  guardarContenido: (id: number | string, contenido: ContenidoPlan) => api.put(`/planificaciones/${id}/contenido`, contenido),
 };
 
 export const diaPlanService = {

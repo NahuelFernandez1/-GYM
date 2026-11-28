@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell,
   TableHead, TableRow, TableContainer, IconButton, Button, TextField, InputBase,
@@ -9,16 +9,16 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import Autocomplete from '@mui/material/Autocomplete';
-import { ejercicioFijoPlanService } from '../services/api';
 import { Ejercicio, EjercicioFijoPlan, PatronMovimiento, TipoBloqueFijo } from '../types';
 
 interface BloqueFijoProps {
-  planificacionId: number | string;
   tipoBloque: TipoBloqueFijo;
   titulo: string;
   catalogoEjercicios: Ejercicio[];
   patronFiltro?: PatronMovimiento;
-  onChange?: () => void;
+  // El bloque no guarda nada: avisa la lista nueva y la pantalla la guarda con "Guardar".
+  items: EjercicioFijoPlan[];
+  onItemsChange: (items: EjercicioFijoPlan[]) => void;
 }
 
 interface FilaDraft {
@@ -28,85 +28,57 @@ interface FilaDraft {
   orden?: number;
 }
 
+// Los items nuevos llevan un id negativo hasta que se guarda el plan.
+let ultimoIdTemporal = 0;
+
 const BloqueFijo: React.FC<BloqueFijoProps> = ({
-  planificacionId,
   tipoBloque,
   titulo,
   catalogoEjercicios,
   patronFiltro,
-  onChange,
+  items,
+  onItemsChange,
 }) => {
-  const [items, setItems] = useState<EjercicioFijoPlan[]>([]);
   const [nuevaFila, setNuevaFila] = useState<FilaDraft | null>(null);
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [filaEdicion, setFilaEdicion] = useState<FilaDraft | null>(null);
-
-  useEffect(() => {
-    cargar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planificacionId, tipoBloque]);
-
-  const cargar = () => {
-    ejercicioFijoPlanService.getByPlanificacion(planificacionId).then(res => {
-      setItems(res.data.filter(i => i.tipoBloque === tipoBloque));
-    }).catch(() => {
-      alert('❌ No se pudieron cargar los ejercicios del bloque.');
-    });
-  };
 
   const opciones = patronFiltro
     ? catalogoEjercicios.filter(e => e.patronMovimiento === patronFiltro)
     : catalogoEjercicios;
 
+  const ejercicioDe = (id?: number) => catalogoEjercicios.find(e => e.id === id);
+
   const guardarNuevo = () => {
     if (!nuevaFila?.ejercicioId) return;
-    const item: Partial<EjercicioFijoPlan> = {
-      planificacion: { id: Number(planificacionId) },
+    onItemsChange([...items, {
+      id: --ultimoIdTemporal,
       tipoBloque,
-      ejercicio: { id: nuevaFila.ejercicioId } as Ejercicio,
+      ejercicio: ejercicioDe(nuevaFila.ejercicioId),
       seriesReps: nuevaFila.seriesReps || '',
       orden: items.length + 1,
-    };
-    ejercicioFijoPlanService.create(item).then(() => {
-      cargar();
-      setNuevaFila(null);
-      onChange?.();
-    }).catch((err) => {
-      alert(err.response?.data?.error || 'No se pudo agregar el ejercicio al bloque.');
-    });
+    } as EjercicioFijoPlan]);
+    setNuevaFila(null);
   };
 
   const eliminar = (id?: number) => {
-    if (!id) return;
-    ejercicioFijoPlanService.delete(id).then(() => {
-      cargar();
-      onChange?.();
-    }).catch((err) => {
-      alert(err.response?.data?.error || 'No se pudo eliminar el ejercicio del bloque.');
-    });
+    if (id === undefined) return;
+    onItemsChange(items.filter(i => i.id !== id).map((i, idx) => ({ ...i, orden: idx + 1 })));
   };
 
   const abrirEditar = (item: EjercicioFijoPlan) => {
-    if (!item.id) return;
+    if (item.id === undefined) return;
     setEditandoId(item.id);
     setFilaEdicion({ ...item, ejercicioId: item.ejercicio?.id });
   };
 
   const guardarEdicion = () => {
-    if (!editandoId || !filaEdicion?.ejercicioId) return;
-    const item: Partial<EjercicioFijoPlan> = {
-      ...filaEdicion,
-      tipoBloque,
-      ejercicio: { id: filaEdicion.ejercicioId } as Ejercicio,
-    };
-    ejercicioFijoPlanService.update(editandoId, item).then(() => {
-      cargar();
-      setEditandoId(null);
-      setFilaEdicion(null);
-      onChange?.();
-    }).catch((err) => {
-      alert(err.response?.data?.error || 'No se pudo editar el ejercicio del bloque.');
-    });
+    if (editandoId === null || !filaEdicion?.ejercicioId) return;
+    onItemsChange(items.map(i => i.id === editandoId
+      ? { ...i, ejercicio: ejercicioDe(filaEdicion.ejercicioId), seriesReps: filaEdicion.seriesReps || '' } as EjercicioFijoPlan
+      : i));
+    setEditandoId(null);
+    setFilaEdicion(null);
   };
 
   return (

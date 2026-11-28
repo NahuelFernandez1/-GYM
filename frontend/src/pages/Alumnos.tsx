@@ -18,6 +18,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import { alumnoService } from '../services/api';
 import { Alumno, EstadoAlumno } from '../types';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { formatearFecha } from '../utils/fechas';
 
 const estadoStyles: Record<EstadoAlumno, { bg: string; text: string; border: string; label: string }> = {
   ACTIVO: { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', label: 'Activo' },
@@ -311,7 +312,7 @@ const Alumnos: React.FC = () => {
                         </Typography>
                         {alumno.fechaNacimiento && (
                           <Typography variant="caption" color="text.secondary">
-                            Nac: {alumno.fechaNacimiento}
+                            Nac: {formatearFecha(alumno.fechaNacimiento)}
                           </Typography>
                         )}
                       </Box>
@@ -360,7 +361,7 @@ const Alumnos: React.FC = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                         <EventIcon sx={{ fontSize: 16, color: '#64748b' }} />
                         <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                          {alumno.fechaVencimientoCuota}
+                          {formatearFecha(alumno.fechaVencimientoCuota)}
                         </Typography>
                       </Box>
                     ) : (

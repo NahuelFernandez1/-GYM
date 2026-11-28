@@ -9,6 +9,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import { usuarioService } from '../services/api';
 import { Usuario, Rol } from '../types';
+import { avisar } from '../components/DialogosGlobales';
 
 const rolLabels: Record<Rol, string> = {
   ADMIN: 'Administrador',
@@ -35,7 +36,7 @@ const Usuarios: React.FC = () => {
 
   const cargarUsuarios = () => {
     usuarioService.getAll().then(res => setUsuarios(res.data)).catch(() => {
-      alert('❌ No se pudo cargar la lista de usuarios.');
+      avisar('No se pudo cargar la lista de usuarios.');
     });
   };
 
@@ -72,7 +73,7 @@ const Usuarios: React.FC = () => {
   const toggleActivo = (usuario: Usuario) => {
     if (!usuario.id) return;
     usuarioService.update(usuario.id, { activo: !usuario.activo }).then(cargarUsuarios).catch((err) => {
-      alert(err.response?.data?.error || 'No se pudo actualizar el estado del usuario.');
+      avisar(err.response?.data?.error || 'No se pudo actualizar el estado del usuario.');
     });
   };
 

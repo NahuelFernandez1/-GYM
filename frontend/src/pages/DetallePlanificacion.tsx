@@ -11,16 +11,22 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import SaveIcon from '@mui/icons-material/Save';
+import EmailIcon from '@mui/icons-material/Email';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import {
-  planificacionService, diaPlanService, ejercicioPlanificadoService, ejercicioService
+  planificacionService, diaPlanService, ejercicioPlanificadoService, ejercicioService, ejercicioFijoPlanService
 } from '../services/api';
 import BloqueFijo from '../components/BloqueFijo';
 import {
   Planificacion, DiaPlan, EjercicioPlanificado, Ejercicio, EstadoPlanificacion,
-  PrescripcionSemanal, PatronMovimiento
+  PrescripcionSemanal, PatronMovimiento, EjercicioFijoPlan, ContenidoPlan
 } from '../types';
+import { formatearFecha } from '../utils/fechas';
+import { confirmarSalida, registrarCambiosSinGuardar } from '../utils/salidaSinGuardar';
+import { confirmar } from '../components/DialogosGlobales';
 
 const DIAS = ['Día 1', 'Día 2', 'Día 3', 'Día 4', 'Día 5', 'Día 6', 'Día 7'];
 const CIRCUITOS = ['CF1', 'CF2', 'CF3', 'CF4', 'CF5', 'CF6', 'CF'];
@@ -39,6 +45,8 @@ type OpcionEjercicio = Ejercicio & { crear?: boolean };
 
 interface Modal {
   ep: EjercicioPlanificado | null; // null = agregar
+  esCopia?: boolean; // agregar, pero arrancando con los datos de otro ejercicio
+  origenId?: number; // ejercicio copiado: la copia queda justo debajo
   diaId: number;
   semanaFoco: number | null;
   ejercicio: OpcionEjercicio | null;
@@ -47,6 +55,30 @@ interface Modal {
   filas: FilaSemana[];
   error: string;
 }
+
+// Botones del encabezado: solo icono, con fondo suave del color de cada accion.
+const botonIcono = (color: string, fondo: string, borde: string) => ({
+  width: 46,
+  height: 46,
+  borderRadius: '14px',
+  color,
+  bgcolor: fondo,
+  border: `1px solid ${borde}`,
+  transition: 'all 0.18s ease',
+  '& svg': { fontSize: 22 },
+  '&:hover': {
+    bgcolor: color,
+    color: '#ffffff',
+    borderColor: color,
+    transform: 'translateY(-1px)',
+    boxShadow: `0 6px 16px ${borde}`,
+  },
+  '&.Mui-disabled': { opacity: 0.6, color, bgcolor: fondo },
+});
+
+// Lo nuevo (días, ejercicios) usa ids negativos hasta que se guarda el plan.
+let ultimoIdTemporal = 0;
+const idTemporal = () => --ultimoIdTemporal;
 
 const filaVacia = (): FilaSemana => ({ series: '', reps: '', rir: '', notasPeso: '' });
 
@@ -105,8 +137,9 @@ const DetallePlanificacion: React.FC = () => {
 
   const [modal, setModal] = useState<Modal | null>(null);
   const [guardandoEjercicio, setGuardandoEjercicio] = useState(false);
-  // Ultimo ejercicio eliminado, para "Deshacer".
-  const [eliminado, setEliminado] = useState<EjercicioPlanificado | null>(null);
+  // Ultimo ejercicio eliminado y en que posicion estaba, para "Deshacer".
+  const [eliminado, setEliminado] = useState<{ ep: EjercicioPlanificado; diaId: number; posicion: number } | null>(null);
+  const [fijos, setFijos] = useState<EjercicioFijoPlan[]>([]);
 
   const [guardando, setGuardando] = useState(false);
   const [cambiosSinGuardar, setCambiosSinGuardar] = useState(false);
@@ -129,7 +162,7 @@ const DetallePlanificacion: React.FC = () => {
       planificacionService.getById(id).then(res => setPlan(res.data)).catch(() => {
         avisar('No se pudo cargar la planificación.');
       });
-      cargarDias();
+      cargarContenido();
       ejercicioService.getAll().then(res => setCatalogoEjercicios(res.data)).catch(() => {
         avisar('No se pudo cargar el catálogo de ejercicios.');
       });
@@ -137,45 +170,86 @@ const DetallePlanificacion: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const cargarDias = (seleccionarId?: number) => {
+  // Cuando hay cambios sin guardar: avisa al cerrar/recargar la pestaña y deja
+  // registrado el aviso para el menú lateral (ver utils/salidaSinGuardar).
+  useEffect(() => {
+    registrarCambiosSinGuardar(cambiosSinGuardar);
+    if (!cambiosSinGuardar) return;
+    const alSalir = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', alSalir);
+    return () => window.removeEventListener('beforeunload', alSalir);
+  }, [cambiosSinGuardar]);
+
+  useEffect(() => () => registrarCambiosSinGuardar(false), []);
+
+  // Trae de la base los días (con sus ejercicios) y los bloques fijos. Lo que se
+  // edita después queda solo en pantalla hasta tocar "Guardar".
+  const cargarContenido = async () => {
     if (!id) return;
-    diaPlanService.getByPlanificacion(id).then(res => {
-      setDias(res.data);
-      if (seleccionarId) {
-        const idx = res.data.findIndex(d => d.id === seleccionarId);
-        if (idx >= 0) setDiaActual(idx);
-      } else {
-        setDiaActual(prev => Math.max(0, Math.min(prev, res.data.length - 1)));
-      }
-      res.data.forEach(d => {
-        if (d.id) cargarEjercicios(d.id);
-      });
-    }).catch(() => {
-      avisar('No se pudieron cargar los días.');
-    });
+    try {
+      const [resDias, resFijos] = await Promise.all([
+        diaPlanService.getByPlanificacion(id),
+        ejercicioFijoPlanService.getByPlanificacion(id),
+      ]);
+      const porDia: Record<number, EjercicioPlanificado[]> = {};
+      await Promise.all(resDias.data.map(async d => {
+        if (!d.id) return;
+        porDia[d.id] = (await ejercicioPlanificadoService.getByDia(d.id)).data;
+      }));
+      setDias(resDias.data);
+      setEjerciciosPorDia(porDia);
+      setFijos([...resFijos.data].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)));
+      setDiaActual(prev => Math.max(0, Math.min(prev, resDias.data.length - 1)));
+      setCambiosSinGuardar(false);
+    } catch {
+      avisar('No se pudo cargar el contenido del plan.');
+    }
   };
 
-  const cargarEjercicios = (diaId: number) => {
-    ejercicioPlanificadoService.getByDia(diaId).then(res => {
-      setEjerciciosPorDia(prev => ({ ...prev, [diaId]: res.data }));
-    }).catch(() => {
-      avisar('No se pudieron cargar los ejercicios.');
-    });
-  };
+  const marcarCambio = () => setCambiosSinGuardar(true);
 
-  const guardarPlan = () => {
+  const guardarPlan = async () => {
     if (!id || !plan) return;
+    const contenido: ContenidoPlan = {
+      ejerciciosFijos: fijos.map(f => ({
+        tipoBloque: f.tipoBloque,
+        ejercicioId: f.ejercicio?.id as number,
+        seriesReps: f.seriesReps || null,
+      })),
+      dias: dias.map(d => ({
+        diaSemana: d.diaSemana,
+        notas: d.notas || null,
+        ejercicios: (ejerciciosPorDia[d.id as number] || []).map(ep => ({
+          ejercicioId: ep.ejercicio?.id as number,
+          circuito: ep.circuito || null,
+          prescripciones: (ep.prescripciones || []).map(p => ({
+            numeroSemana: p.numeroSemana,
+            series: p.series ?? null,
+            reps: p.reps ?? null,
+            rir: p.rir ?? null,
+            notasPeso: p.notasPeso ?? null,
+          })),
+        })),
+      })),
+    };
     setGuardando(true);
-    planificacionService.update(id, plan)
-      .then((res) => {
-        setPlan(res.data);
-        setCambiosSinGuardar(false);
-        avisar('Plan guardado correctamente', 'success');
-      })
-      .catch(() => {
-        avisar('No se pudo guardar el plan');
-      })
-      .finally(() => setGuardando(false));
+    try {
+      await planificacionService.guardarContenido(id, contenido);
+      setEliminado(null);
+      await cargarContenido();
+      avisar('Plan guardado correctamente', 'success');
+    } catch (err: any) {
+      avisar(err.response?.data?.error || 'No se pudo guardar el plan. Los cambios siguen en pantalla.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  // Flechita de volver: si hay cambios sin guardar, pregunta antes de descartarlos.
+  const volver = async () => {
+    if (!(await confirmarSalida())) return;
+    setCambiosSinGuardar(false);
+    navigate('/planificaciones');
   };
 
   const enviarPorMail = () => {
@@ -189,24 +263,55 @@ const DetallePlanificacion: React.FC = () => {
       .catch((err) => avisar(err.response?.data || 'No se pudo enviar el mail.'));
   };
 
-  // Agrega el siguiente "Día N" que no exista todavía.
-  const agregarDia = () => {
+  // Abre el PDF en otra pestaña para verlo, imprimirlo o descargarlo. La pestaña se
+  // abre antes de pedir el PDF para que el navegador no la bloquee como ventana emergente.
+  const verPdf = () => {
     if (!id) return;
-    const usados = new Set(dias.map(d => d.diaSemana));
-    const nombre = DIAS.find(d => !usados.has(d)) || `Día ${dias.length + 1}`;
-    setCambiosSinGuardar(true);
-    diaPlanService.create({ planificacion: { id: parseInt(id) }, diaSemana: nombre })
-      .then((res) => cargarDias(res.data.id))
-      .catch((err) => avisar(err.response?.data?.error || 'No se pudo agregar el día de entrenamiento.'));
+    if (cambiosSinGuardar) {
+      avisar('Debés guardar el plan antes de ver el PDF', 'warning');
+      return;
+    }
+    const pestana = window.open('', '_blank');
+    planificacionService.pdf(id)
+      .then((res) => {
+        const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+        if (pestana) pestana.location.href = url;
+        else window.location.href = url;
+      })
+      .catch(() => {
+        pestana?.close();
+        avisar('No se pudo generar el PDF.');
+      });
   };
 
-  const eliminarDia = () => {
+  // Agrega el siguiente "Día N" que no exista todavía.
+  const agregarDia = () => {
+    const usados = new Set(dias.map(d => d.diaSemana));
+    const nombre = DIAS.find(d => !usados.has(d)) || `Día ${dias.length + 1}`;
+    const nuevo: DiaPlan = { id: idTemporal(), diaSemana: nombre };
+    setDias(prev => [...prev, nuevo]);
+    setEjerciciosPorDia(prev => ({ ...prev, [nuevo.id as number]: [] }));
+    setDiaActual(dias.length);
+    marcarCambio();
+  };
+
+  const eliminarDia = async () => {
     if (!dia?.id) return;
-    if (window.confirm(`¿Eliminar ${dia.diaSemana} y todos sus ejercicios?`)) {
-      setCambiosSinGuardar(true);
-      diaPlanService.delete(dia.id).then(() => cargarDias()).catch((err) => {
-        avisar(err.response?.data?.error || 'No se pudo eliminar el día.');
+    const ok = await confirmar({
+      titulo: `Eliminar ${dia.diaSemana}`,
+      mensaje: `¿Eliminar ${dia.diaSemana} y todos sus ejercicios? Se aplica al tocar "Guardar".`,
+    });
+    if (ok) {
+      const diaId = dia.id;
+      setDias(prev => prev.filter(d => d.id !== diaId));
+      setEjerciciosPorDia(prev => {
+        const resto = { ...prev };
+        delete resto[diaId];
+        return resto;
       });
+      setDiaActual(prev => Math.max(0, prev - 1));
+      if (eliminado?.diaId === diaId) setEliminado(null);
+      marcarCambio();
     }
   };
 
@@ -227,10 +332,12 @@ const DetallePlanificacion: React.FC = () => {
     });
   };
 
-  const abrirEditar = (ep: EjercicioPlanificado, semanaFoco: number | null = null) => {
+  const abrirEditar = (ep: EjercicioPlanificado, semanaFoco: number | null = null, esCopia = false) => {
     if (!dia?.id) return;
     setModal({
-      ep,
+      ep: esCopia ? null : ep,
+      esCopia,
+      origenId: esCopia ? ep.id : undefined,
       diaId: dia.id,
       semanaFoco,
       ejercicio: ep.ejercicio || null,
@@ -279,54 +386,54 @@ const DetallePlanificacion: React.FC = () => {
         rir: f.rir.trim() || null,
         notasPeso: f.notasPeso.trim() || null,
       }));
-      const datos: Partial<EjercicioPlanificado> = {
+      // Queda en pantalla; se guarda en la base recien al tocar "Guardar".
+      const editado: EjercicioPlanificado = {
+        ...(modal.ep || {}),
+        id: modal.ep?.id ?? idTemporal(),
         diaPlan: { id: modal.diaId },
-        ejercicio: { id: ejercicio.id } as Ejercicio,
+        ejercicio,
         circuito: modal.circuito || null,
         prescripciones,
       };
-      if (modal.ep?.id) {
-        await ejercicioPlanificadoService.update(modal.ep.id, datos);
-      } else {
-        await ejercicioPlanificadoService.create(datos);
-      }
-      setCambiosSinGuardar(true);
-      cargarEjercicios(modal.diaId);
+      setEjerciciosPorDia(prev => {
+        const lista = [...(prev[modal.diaId] || [])];
+        const actual = lista.findIndex(e => e.id === editado.id);
+        if (actual >= 0) {
+          lista[actual] = editado;
+        } else {
+          const origen = lista.findIndex(e => e.id === modal.origenId);
+          lista.splice(origen >= 0 ? origen + 1 : lista.length, 0, editado);
+        }
+        return { ...prev, [modal.diaId]: lista };
+      });
+      marcarCambio();
       setModal(null);
     } catch (err: any) {
-      setModal(m => m ? { ...m, error: err.response?.data?.error || 'No se pudo guardar el ejercicio.' } : m);
+      setModal(m => m ? { ...m, error: err.response?.data?.error || 'No se pudo crear el ejercicio nuevo.' } : m);
     } finally {
       setGuardandoEjercicio(false);
     }
   };
 
-  // ---- Eliminar con "Deshacer": se borra en el momento y, si se deshace, se vuelve a crear igual ----
+  // ---- Eliminar con "Deshacer" (solo en pantalla hasta "Guardar") ----
 
   const eliminarEjercicio = (ep: EjercicioPlanificado) => {
-    if (!ep.id || !ep.diaPlan?.id) return;
-    const diaId = ep.diaPlan.id;
-    setCambiosSinGuardar(true);
-    ejercicioPlanificadoService.delete(ep.id).then(() => {
-      setEjerciciosPorDia(prev => ({ ...prev, [diaId]: (prev[diaId] || []).filter(e => e.id !== ep.id) }));
-      setEliminado(ep);
-    }).catch((err) => {
-      avisar(err.response?.data?.error || 'No se pudo eliminar el ejercicio.');
-    });
+    if (!dia?.id) return;
+    const diaId = dia.id;
+    const posicion = (ejerciciosPorDia[diaId] || []).findIndex(e => e.id === ep.id);
+    setEjerciciosPorDia(prev => ({ ...prev, [diaId]: (prev[diaId] || []).filter(e => e.id !== ep.id) }));
+    setEliminado({ ep, diaId, posicion });
+    marcarCambio();
   };
 
   const deshacerEliminar = () => {
-    const ep = eliminado;
+    const borrado = eliminado;
     setEliminado(null);
-    if (!ep?.diaPlan?.id) return;
-    const diaId = ep.diaPlan.id;
-    ejercicioPlanificadoService.create({
-      diaPlan: { id: diaId },
-      ejercicio: { id: ep.ejercicio?.id } as Ejercicio,
-      circuito: ep.circuito,
-      orden: ep.orden,
-      prescripciones: (ep.prescripciones || []).map(p => ({ ...p, id: undefined })),
-    }).then(() => cargarEjercicios(diaId)).catch((err) => {
-      avisar(err.response?.data?.error || 'No se pudo restaurar el ejercicio.');
+    if (!borrado || !ejerciciosPorDia[borrado.diaId]) return;
+    setEjerciciosPorDia(prev => {
+      const lista = [...(prev[borrado.diaId] || [])];
+      lista.splice(Math.max(0, Math.min(borrado.posicion, lista.length)), 0, borrado.ep);
+      return { ...prev, [borrado.diaId]: lista };
     });
   };
 
@@ -360,6 +467,11 @@ const DetallePlanificacion: React.FC = () => {
           <EditIcon sx={{ fontSize: 17 }} />
         </IconButton>
       </Tooltip>
+      <Tooltip title="Copiar">
+        <IconButton size="small" onClick={() => abrirEditar(ep, null, true)} sx={{ color: '#16a34a' }}>
+          <ContentCopyIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
       <Tooltip title="Eliminar">
         <IconButton size="small" color="error" onClick={() => eliminarEjercicio(ep)}>
           <DeleteIcon sx={{ fontSize: 17 }} />
@@ -379,7 +491,7 @@ const DetallePlanificacion: React.FC = () => {
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <IconButton
-              onClick={() => navigate('/planificaciones')}
+              onClick={volver}
               sx={{ bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}
             >
               <ArrowBackIcon />
@@ -401,29 +513,32 @@ const DetallePlanificacion: React.FC = () => {
                 />
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                Atleta: <strong>{plan.alumno?.nombre} {plan.alumno?.apellido}</strong> ({plan.alumno?.email || 'Sin email'}) — Vigencia: {plan.fechaInicio || '—'} {plan.fechaFin ? `al ${plan.fechaFin}` : ''}
+                Atleta: <strong>{plan.alumno?.nombre} {plan.alumno?.apellido}</strong> ({plan.alumno?.email || 'Sin email'}) — Vigencia: {formatearFecha(plan.fechaInicio)} {plan.fechaFin ? `al ${formatearFecha(plan.fechaFin)}` : ''}
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-            <Button
-              variant="outlined"
-              onClick={guardarPlan}
-              disabled={guardando}
-              startIcon={guardando ? <CircularProgress size={16} /> : <SaveIcon />}
-              sx={{ fontWeight: 700, px: 2.5 }}
-            >
-              Guardar
-            </Button>
-            <Button
-              variant="outlined"
-              color="success"
-              onClick={enviarPorMail}
-              sx={{ fontWeight: 700, px: 2.5 }}
-            >
-              Enviar por mail
-            </Button>
+          <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center' }}>
+            <Tooltip title="Guardar" arrow>
+              <span>
+                <IconButton onClick={guardarPlan} disabled={guardando} aria-label="Guardar"
+                  sx={botonIcono('#16a34a', '#f0fdf4', '#bbf7d0')}>
+                  {guardando ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Enviar por mail" arrow>
+              <IconButton onClick={enviarPorMail} aria-label="Enviar por mail"
+                sx={botonIcono('#0284c7', '#f0f9ff', '#bae6fd')}>
+                <EmailIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Ver / imprimir PDF" arrow>
+              <IconButton onClick={verPdf} aria-label="Ver o imprimir PDF"
+                sx={botonIcono('#dc2626', '#fef2f2', '#fecaca')}>
+                <PictureAsPdfIcon />
+              </IconButton>
+            </Tooltip>
           </Box>
         </Box>
       </Paper>
@@ -432,19 +547,19 @@ const DetallePlanificacion: React.FC = () => {
       {id && (
         <>
           <BloqueFijo
-            planificacionId={id}
             tipoBloque="MOVILIDAD"
             titulo="Bloque de Movilidad y Calentamiento"
             catalogoEjercicios={catalogoEjercicios}
             patronFiltro="MOVILIDAD"
-            onChange={() => setCambiosSinGuardar(true)}
+            items={fijos.filter(f => f.tipoBloque === 'MOVILIDAD')}
+            onItemsChange={(lista) => { setFijos(prev => [...prev.filter(f => f.tipoBloque !== 'MOVILIDAD'), ...lista]); marcarCambio(); }}
           />
           <BloqueFijo
-            planificacionId={id}
             tipoBloque="ACTIVACION"
             titulo="Bloque de Activación y Core"
             catalogoEjercicios={catalogoEjercicios}
-            onChange={() => setCambiosSinGuardar(true)}
+            items={fijos.filter(f => f.tipoBloque === 'ACTIVACION')}
+            onItemsChange={(lista) => { setFijos(prev => [...prev.filter(f => f.tipoBloque !== 'ACTIVACION'), ...lista]); marcarCambio(); }}
           />
         </>
       )}
@@ -603,7 +718,7 @@ const DetallePlanificacion: React.FC = () => {
           <>
             <DialogTitle sx={{ pb: 1 }}>
               <Box component="span" sx={{ display: 'block', fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif', fontWeight: 800, fontSize: '1.25rem', color: '#0f172a' }}>
-                {modal.ep ? 'Editar ejercicio' : 'Agregar ejercicio'}
+                {modal.ep ? 'Editar ejercicio' : modal.esCopia ? 'Copiar ejercicio' : 'Agregar ejercicio'}
               </Box>
               <Box component="span" sx={{ display: 'block', color: '#64748b', fontSize: 14, fontWeight: 500 }}>
                 {dias.find(d => d.id === modal.diaId)?.diaSemana}{modal.semanaFoco ? ` · Semana ${modal.semanaFoco}` : ''}
@@ -738,7 +853,7 @@ const DetallePlanificacion: React.FC = () => {
         autoHideDuration={6000}
         onClose={(_, motivo) => { if (motivo !== 'clickaway') setEliminado(null); }}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        message={`Eliminado: ${eliminado?.ejercicio?.nombre || ''}`}
+        message={`Eliminado: ${eliminado?.ep.ejercicio?.nombre || ''}`}
         action={<Button onClick={deshacerEliminar} sx={{ color: '#4ade80', fontWeight: 800 }}>Deshacer</Button>}
       />
 

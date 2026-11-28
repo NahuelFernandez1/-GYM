@@ -1,6 +1,8 @@
 package com.masgym.api.controller;
 
+import com.masgym.api.dto.ContenidoPlanDTO;
 import com.masgym.api.model.Planificacion;
+import com.masgym.api.service.ContenidoPlanService;
 import com.masgym.api.service.PlanificacionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -22,6 +24,7 @@ public class PlanificacionController {
     private final EmailService emailService;
     private final PdfService pdfService;
     private final PlanificacionRepository planificacionRepository;
+    private final ContenidoPlanService contenidoPlanService;
 
     @GetMapping
     public ResponseEntity<List<Planificacion>> obtenerTodas() {
@@ -57,6 +60,13 @@ public class PlanificacionController {
         return planificacionService.actualizarDatosBasicos(id, cambios)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // Guarda de una vez los bloques fijos, dias y ejercicios armados en pantalla.
+    @PutMapping("/{id}/contenido")
+    public ResponseEntity<Void> guardarContenido(@PathVariable Long id, @RequestBody ContenidoPlanDTO contenido) {
+        contenidoPlanService.guardar(id, contenido);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/copiar")

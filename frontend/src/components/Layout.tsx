@@ -15,6 +15,7 @@ import SportsGymnasticsIcon from '@mui/icons-material/SportsGymnastics';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAuth } from '../context/AuthContext';
+import { confirmarSalida } from '../utils/salidaSinGuardar';
 
 const DRAWER_WIDTH = 260;
 
@@ -46,7 +47,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     ? [...menuItems, { texto: 'Usuarios', icono: <AdminPanelSettingsIcon />, ruta: '/usuarios' }]
     : menuItems;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (!(await confirmarSalida())) return;
     logout();
     navigate('/login');
   };
@@ -64,7 +66,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const drawer = (
     <Box sx={{
-      height: '100%',
+      // minHeight (no height): si la ventana es baja y el menu no entra, el fondo
+      // oscuro sigue hasta abajo en vez de cortarse a la altura de la pantalla.
+      minHeight: '100%',
       display: 'flex',
       flexDirection: 'column',
       bgcolor: '#0f172a',
@@ -123,7 +127,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <ListItem key={item.texto} disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 selected={selected}
-                onClick={() => {
+                onClick={async () => {
+                  if (!(await confirmarSalida())) return;
                   navigate(item.ruta);
                   setMobileOpen(false);
                 }}
@@ -259,7 +264,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH, border: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH, border: 'none', bgcolor: '#0f172a' },
           }}
         >
           {drawer}
@@ -272,6 +277,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: DRAWER_WIDTH,
+              bgcolor: '#0f172a',
               borderRight: '1px solid rgba(0, 0, 0, 0.08)',
               boxShadow: '4px 0 24px rgba(0,0,0,0.02)'
             },

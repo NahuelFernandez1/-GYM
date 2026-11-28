@@ -16,6 +16,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { dashboardService } from '../services/api';
 import { DashboardKPIs, AlumnoPorVencer } from '../types';
+import { formatearFecha } from '../utils/fechas';
 
 interface KpiCardProps {
   titulo: string;
@@ -451,7 +452,7 @@ const Dashboard: React.FC = () => {
                   >
                     <ListItemText
                       primary={item.nombreCompleto}
-                      secondary={`Vencimiento: ${new Date(item.fechaVencimientoCuota + 'T00:00:00').toLocaleDateString('es-AR')}`}
+                      secondary={`Vencimiento: ${formatearFecha(item.fechaVencimientoCuota)}`}
                       slotProps={{ primary: { sx: { fontWeight: 600 } } }}
                       sx={{ pr: 14 }}
                     />

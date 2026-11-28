@@ -80,6 +80,7 @@ export interface DiaPlan {
   id?: number;
   planificacion?: { id: number };
   diaSemana: string;
+  notas?: string | null;
 }
 
 // Lo que se pide de un ejercicio en una semana puntual (1..cantidadSemanas).
@@ -110,6 +111,20 @@ export interface EjercicioFijoPlan {
   tipoBloque: TipoBloqueFijo;
   seriesReps?: string;
   orden?: number;
+}
+
+// Lo que manda "Guardar" en el detalle del plan: reemplaza todo el contenido.
+export interface ContenidoPlan {
+  ejerciciosFijos: { tipoBloque: TipoBloqueFijo; ejercicioId: number; seriesReps: string | null }[];
+  dias: {
+    diaSemana: string;
+    notas: string | null;
+    ejercicios: {
+      ejercicioId: number;
+      circuito: string | null;
+      prescripciones: PrescripcionSemanal[];
+    }[];
+  }[];
 }
 
 export interface DashboardKPIs {

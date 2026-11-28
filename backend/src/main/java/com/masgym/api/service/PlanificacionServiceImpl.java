@@ -15,7 +15,7 @@ import java.util.Optional;
 public class PlanificacionServiceImpl implements PlanificacionService {
 
     // Tambien esta como CHECK en la base (ck_planificaciones_cantidad_semanas).
-    private static final int MAX_SEMANAS = 5;
+    private static final int MAX_SEMANAS = 7;
 
     private final PlanificacionRepository planificacionRepository;
     private final DiaPlanRepository diaPlanRepository;
